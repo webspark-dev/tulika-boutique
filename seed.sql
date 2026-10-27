@@ -258,3 +258,4 @@ ON CONFLICT (id) DO UPDATE SET
   comment_bn = EXCLUDED.comment_bn,
   comment_en = EXCLUDED.comment_en,
   is_visible = EXCLUDED.is_visible;
+

@@ -524,3 +524,4 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadReviews();
   initSearch();
 });
+

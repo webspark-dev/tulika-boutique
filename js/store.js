@@ -839,3 +839,4 @@ export async function checkIsAdmin(user) {
     return false;
   }
 }
+

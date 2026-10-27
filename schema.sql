@@ -234,3 +234,4 @@ CREATE POLICY "Admins can delete product images"
   ON storage.objects FOR DELETE
   TO authenticated
   USING (bucket_id = 'product-images' AND public.is_admin());
+

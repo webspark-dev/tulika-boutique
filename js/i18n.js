@@ -402,3 +402,4 @@ export function applyI18nToDOM(lang = getCurrentLang()) {
     btn.setAttribute('aria-label', lang === 'bn' ? 'Switch to English' : 'বাংলায় দেখুন');
   });
 }
+

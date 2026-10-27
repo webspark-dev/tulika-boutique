@@ -86,3 +86,4 @@ export function renderSetupNotice(container) {
 
   container.prepend(notice);
 }
+
