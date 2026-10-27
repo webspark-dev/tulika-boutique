@@ -35,7 +35,8 @@ export function getSupabase() {
   }
   if (!supabaseInstance) {
     try {
-      supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      const cleanUrl = SUPABASE_URL.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+      supabaseInstance = createClient(cleanUrl, SUPABASE_ANON_KEY, {
         auth: {
           persistSession: true,
           autoRefreshToken: true,
