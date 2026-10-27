@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>অ্যাডমিন — তুলিকা</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Tiro+Bangla&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/store.css">
+  <style>
+    .admin-wrap{width:min(1440px,calc(100% - 2rem));margin:1.5rem auto 4rem}.admin-head,.admin-toolbar,.admin-actions,.admin-tabs,.inline{display:flex;align-items:center;gap:.65rem;flex-wrap:wrap}.admin-head{justify-content:space-between;margin-bottom:1.2rem}.admin-head h1{font:400 var(--s2)/1.2 var(--display);color:var(--wine);margin:0}.admin-tabs{margin:1rem 0;padding:.4rem;border:1px solid var(--line);border-radius:1rem;background:var(--surface)}.admin-tabs button{border:0;border-radius:.7rem;padding:.55rem .85rem;color:var(--muted);background:transparent;cursor:pointer}.admin-tabs button[aria-selected=true]{background:var(--wine);color:white}.admin-pane{display:none}.admin-pane.active{display:block}.admin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr));gap:1rem}.metric{padding:1.2rem;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}.metric small{display:block;color:var(--muted)}.metric strong{font:1.8rem var(--display);color:var(--wine)}.admin-toolbar{justify-content:space-between;margin:1rem 0}.admin-toolbar .field{min-width:min(100%,14rem)}.admin-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}.admin-table{width:100%;border-collapse:collapse;min-width:720px}.admin-table th,.admin-table td{padding:.75rem .85rem;text-align:start;border-bottom:1px solid var(--line);vertical-align:middle}.admin-table th{color:var(--wine);font-weight:700;white-space:nowrap}.admin-table tr:last-child td{border-bottom:0}.admin-table .thumb{width:3.3rem;height:3.8rem;object-fit:cover;border-radius:.45rem;background:var(--blush)}.admin-table button.link-button{padding:0;border:0;background:none;color:var(--wine);text-decoration:underline;cursor:pointer}.admin-status{display:inline-block;padding:.12rem .55rem;border-radius:99px;background:var(--blush);white-space:nowrap}.admin-error{margin:1rem 0}.admin-empty{padding:1.4rem;text-align:center;color:var(--muted)}.admin-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr));gap:.7rem;flex:1}.admin-card{margin-block:1rem}.admin-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem}.admin-form .full{grid-column:1/-1}.admin-form .field label,.field>label{font-weight:600}.admin-form input[type=checkbox]{width:1.1rem;height:1.1rem;accent-color:var(--wine)}.admin-form .check{padding:.4rem 0}.admin-form textarea{min-height:5rem}.admin-login{max-width:28rem;margin:10vh auto}.admin-login h1{font:var(--s2) var(--display);color:var(--wine)}dialog{width:min(760px,calc(100% - 1.5rem));max-height:90vh;overflow:auto;padding:1.2rem;border:1px solid var(--line);border-radius:1rem;background:var(--paper);color:var(--ink);box-shadow:var(--shadow)}dialog::backdrop{background:rgba(32,18,24,.6)}dialog h2{margin:.2rem 0 1rem;color:var(--wine);font:1.6rem var(--display)}.dialog-head{display:flex;justify-content:space-between;align-items:start;gap:1rem}.icon-button{width:2.5rem;height:2.5rem;border:1px solid var(--line);border-radius:50%;background:var(--surface);cursor:pointer}.order-lines{margin:1rem 0;border-collapse:collapse;width:100%}.order-lines th,.order-lines td{padding:.55rem;text-align:start;border-bottom:1px solid var(--line)}.image-list{display:flex;gap:.5rem;overflow:auto}.image-item{position:relative;flex:0 0 5rem}.image-item img{width:5rem;height:6rem;object-fit:cover;border-radius:.4rem}.image-item button{position:absolute;top:0;right:0;border:0;border-radius:50%;background:#922;color:#fff;cursor:pointer}.hint{font-size:.88rem;color:var(--muted)}.admin-notice{margin:1rem 0}.hidden{display:none!important}.sort-controls{display:flex;gap:.25rem}.admin-footer{padding:1rem 0;color:var(--muted);font-size:.9rem}.print-only{display:none}
+    @media(max-width:640px){.admin-wrap{width:calc(100% - 1rem);margin-top:.7rem}.admin-form{grid-template-columns:1fr}.admin-form .full{grid-column:auto}.admin-head{align-items:flex-start}.admin-tabs{overflow:auto;flex-wrap:nowrap}.admin-tabs button{white-space:nowrap}.admin-toolbar{align-items:stretch}.admin-toolbar .button{width:100%}}
+    @media print{body>*{display:none!important}#print-root{display:block!important;background:white;color:#111;padding:1.5rem;font:14px Arial,sans-serif}#print-root h1{margin-top:0}#print-root table{width:100%;border-collapse:collapse}#print-root th,#print-root td{padding:.5rem;border-bottom:1px solid #ccc;text-align:left}}
+  </style>
+  <script type="module" src="assets/admin.js"></script>
+</head>
+<body>
+  <main id="admin-app" class="admin-wrap">
+    <div id="global-error" class="error admin-error" role="alert" hidden></div>
+    <section id="login-view" class="card admin-login">
+      <a class="brand" href="index.html"><span class="brand-mark">তু</span><span class="brand-name">তুলিকা</span></a>
+      <h1 data-i18n="loginTitle">অ্যাডমিন লগইন</h1>
+      <p class="muted" data-i18n="loginHelp">অনুমোদিত অ্যাডমিন ইমেল দিয়ে সাইন ইন করুন।</p>
+      <form id="login-form" class="admin-form">
+        <div class="field full"><label for="login-email" data-i18n="email">ইমেল</label><input id="login-email" name="email" type="email" autocomplete="username" required></div>
+        <div class="field full"><label for="login-password" data-i18n="password">পাসওয়ার্ড</label><input id="login-password" name="password" type="password" autocomplete="current-password" required></div>
+        <div class="full"><button class="button" type="submit" data-i18n="signIn">সাইন ইন</button></div>
+      </form>
+    </section>
+    <section id="dashboard-view" hidden>
+      <header class="admin-head">
+        <div><p class="eyebrow" data-i18n="adminLabel">তুলিকা · অ্যাডমিন</p><h1 data-i18n="dashboard">ড্যাশবোর্ড</h1><span id="admin-email" class="hint"></span></div>
+        <div class="admin-actions"><button class="lang-button" id="language-toggle" type="button" aria-label="Toggle language">EN</button><button class="button secondary" id="sign-out" type="button" data-i18n="signOut">সাইন আউট</button></div>
+      </header>
+      <div id="admin-message" class="notice admin-notice" role="status" hidden></div>
+      <nav class="admin-tabs" role="tablist">
+        <button type="button" role="tab" data-tab="overview" aria-selected="true">ড্যাশবোর্ড</button>
+        <button type="button" role="tab" data-tab="orders" aria-selected="false">অর্ডার</button>
+        <button type="button" role="tab" data-tab="products" aria-selected="false">পণ্য</button>
+        <button type="button" role="tab" data-tab="categories" aria-selected="false">বিভাগ</button>
+        <button type="button" role="tab" data-tab="reviews" aria-selected="false">রিভিউ</button>
+        <button type="button" role="tab" data-tab="settings" aria-selected="false">সেটিংস</button>
+      </nav>
+      <section id="tab-overview" class="admin-pane active" role="tabpanel">
+        <div class="admin-grid">
+          <article class="metric"><small data-i18n="todayOrders">আজকের অর্ডার</small><strong id="metric-today">—</strong></article>
+          <article class="metric"><small data-i18n="pendingOrders">অপেক্ষমাণ অর্ডার</small><strong id="metric-pending">—</strong></article>
+          <article class="metric"><small data-i18n="lowStock">কম স্টক</small><strong id="metric-stock">—</strong></article>
+          <article class="metric"><small data-i18n="monthSales">এই মাসের বিক্রি</small><strong id="metric-sales">—</strong></article>
+        </div>
+        <section class="card admin-card"><div class="section-head"><h2 class="section-title" data-i18n="recentOrders">সাম্প্রতিক অর্ডার</h2><button class="button secondary" data-go-tab="orders" type="button" data-i18n="allOrders">সব অর্ডার</button></div><div id="recent-orders"></div></section>
+      </section>
+      <section id="tab-orders" class="admin-pane" role="tabpanel">
+        <div class="admin-toolbar"><div class="admin-filters">
+          <div class="field"><label for="order-search" data-i18n="search">খুঁজুন</label><input id="order-search" class="filter-input" type="search" placeholder="ফোন / অর্ডার নম্বর"></div>
+          <div class="field"><label for="order-status-filter" data-i18n="status">অবস্থা</label><select id="order-status-filter"><option value="">সব</option><option value="new">নতুন</option><option value="confirmed">নিশ্চিত</option><option value="packed">প্যাকড</option><option value="shipped">পাঠানো</option><option value="delivered">ডেলিভারড</option><option value="cancelled">বাতিল</option></select></div>
+          <div class="field"><label for="order-date-filter" data-i18n="date">তারিখ</label><input id="order-date-filter" type="date"></div>
+        </div><button id="export-orders" class="button secondary" type="button" data-i18n="exportCsv">CSV ডাউনলোড</button></div>
+        <div id="orders-table"></div>
+      </section>
+      <section id="tab-products" class="admin-pane" role="tabpanel">
+        <div class="admin-toolbar"><div class="admin-filters">
+          <div class="field"><label for="product-search" data-i18n="search">খুঁজুন</label><input id="product-search" type="search" placeholder="নাম / স্লাগ"></div>
+          <div class="field"><label for="product-category-filter" data-i18n="category">বিভাগ</label><select id="product-category-filter"><option value="">সব বিভাগ</option></select></div>
+          <div class="field"><label for="product-visible-filter" data-i18n="visibility">দৃশ্যমানতা</label><select id="product-visible-filter"><option value="">সব</option><option value="true">দৃশ্যমান</option><option value="false">লুকানো</option></select></div>
+        </div><button id="add-product" class="button" type="button" data-i18n="addProduct">+ পণ্য যোগ করুন</button></div>
+        <div id="products-table"></div>
+      </section>
+      <section id="tab-categories" class="admin-pane" role="tabpanel">
+        <div class="section-head"><h2 class="section-title" data-i18n="categories">বিভাগ</h2><button id="add-category" class="button" type="button" data-i18n="addCategory">+ বিভাগ যোগ করুন</button></div>
+        <div id="categories-table"></div>
+      </section>
+      <section id="tab-reviews" class="admin-pane" role="tabpanel">
+        <div class="section-head"><h2 class="section-title" data-i18n="reviews">রিভিউ</h2><button id="add-review" class="button" type="button" data-i18n="addReview">+ রিভিউ যোগ করুন</button></div>
+        <div id="reviews-table"></div>
+      </section>
+      <section id="tab-settings" class="admin-pane" role="tabpanel">
+        <h2 class="section-title" data-i18n="settings">সেটিংস</h2>
+        <form id="settings-form" class="card admin-form"></form>
+      </section>
+      <footer class="admin-footer">Tulika · Supabase Admin</footer>
+    </section>
+  </main>
+  <dialog id="entity-dialog" aria-labelledby="dialog-title"><div class="dialog-head"><h2 id="dialog-title"></h2><button class="icon-button" type="button" data-close-dialog aria-label="Close">×</button></div><div id="dialog-content"></div></dialog>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title"><div class="dialog-head"><h2 id="confirm-title"></h2><button class="icon-button" type="button" data-cancel-confirm aria-label="Close">×</button></div><p id="confirm-text"></p><div class="admin-actions"><button id="confirm-cancel" class="button secondary" type="button">বাতিল</button><button id="confirm-accept" class="button" type="button">নিশ্চিত</button></div></dialog>
+  <div id="print-root" class="print-only"></div>
+</body>
+</html>
