@@ -1,302 +1,236 @@
--- Tulika boutique schema. Run in Supabase SQL Editor.
--- তুলিকা ডেটাবেস। প্রথম admin user তৈরি করে তার UUID admins-এ যোগ করুন।
-create extension if not exists pgcrypto;
+-- ==============================================================================
+-- Tulika Boutique / তূলিকা বুটিক
+-- Supabase Database Schema with Strict Row-Level Security (RLS)
+-- Free tier compatible: PostgreSQL 15+, Supabase Storage, Supabase Auth
+-- ==============================================================================
 
-create table if not exists public.categories (
-  id uuid primary key default gen_random_uuid(),
-  slug text not null unique check (slug ~ '^[a-z0-9-]{1,60}$'),
-  name_bn text not null check (length(name_bn) between 1 and 100),
-  name_en text not null check (length(name_en) between 1 and 100),
-  sort_order integer not null default 0,
-  visible boolean not null default true,
-  created_at timestamptz not null default now()
+-- 1. Create updated_at trigger helper
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 2. CATEGORIES TABLE
+CREATE TABLE IF NOT EXISTS public.categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug TEXT UNIQUE NOT NULL,
+  name_bn TEXT NOT NULL,
+  name_en TEXT NOT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-create table if not exists public.products (
-  id uuid primary key default gen_random_uuid(),
-  category_id uuid not null references public.categories(id) on delete restrict,
-  slug text not null unique check (slug ~ '^[a-z0-9-]{1,100}$'),
-  name_bn text not null check (length(name_bn) between 1 and 200),
-  name_en text not null check (length(name_en) between 1 and 200),
-  description_bn text not null default '',
-  description_en text not null default '',
-  price numeric(12,2) not null check (price >= 0),
-  discount_price numeric(12,2) check (discount_price >= 0 and discount_price < price),
-  is_new boolean not null default false,
-  featured boolean not null default false,
-  visible boolean not null default true,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+-- 3. PRODUCTS TABLE
+-- Strict constraints: price >= 0, valid stock_status, names NOT NULL,
+-- category_id references categories with ON DELETE RESTRICT
+CREATE TABLE IF NOT EXISTS public.products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name_bn TEXT NOT NULL,
+  name_en TEXT NOT NULL,
+  description_bn TEXT DEFAULT '',
+  description_en TEXT DEFAULT '',
+  price NUMERIC(10, 2) NOT NULL CHECK (price >= 0),
+  category_id UUID NOT NULL REFERENCES public.categories(id) ON DELETE RESTRICT,
+  stock_status TEXT NOT NULL DEFAULT 'in_stock' CHECK (stock_status IN ('in_stock', 'sold_out')),
+  is_featured BOOLEAN NOT NULL DEFAULT false,
+  is_new BOOLEAN NOT NULL DEFAULT false,
+  is_visible BOOLEAN NOT NULL DEFAULT true,
+  image_url TEXT DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-create table if not exists public.product_images (
-  id uuid primary key default gen_random_uuid(),
-  product_id uuid not null references public.products(id) on delete cascade,
-  storage_path text not null unique check (storage_path !~ '^/' and position('..' in storage_path)=0),
-  alt_bn text not null default '',
-  alt_en text not null default '',
-  sort_order integer not null default 0,
-  created_at timestamptz not null default now()
+-- Indexes for high-performance querying
+CREATE INDEX IF NOT EXISTS idx_products_category_id ON public.products(category_id);
+CREATE INDEX IF NOT EXISTS idx_products_is_visible ON public.products(is_visible);
+CREATE INDEX IF NOT EXISTS idx_products_stock_status ON public.products(stock_status);
+
+-- Trigger for auto-updating updated_at on products
+DROP TRIGGER IF EXISTS tr_products_updated_at ON public.products;
+CREATE TRIGGER tr_products_updated_at
+  BEFORE UPDATE ON public.products
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
+
+-- 4. REVIEWS TABLE
+CREATE TABLE IF NOT EXISTS public.reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  author_name TEXT NOT NULL,
+  rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  comment_bn TEXT NOT NULL,
+  comment_en TEXT DEFAULT '',
+  is_visible BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-create table if not exists public.product_sizes (
-  id uuid primary key default gen_random_uuid(),
-  product_id uuid not null references public.products(id) on delete cascade,
-  size text not null check (length(size) between 1 and 40),
-  stock integer not null default 0 check (stock >= 0),
-  unique(product_id, size)
+-- 5. SETTINGS TABLE (Single row, id = 1)
+CREATE TABLE IF NOT EXISTS public.settings (
+  id INT PRIMARY KEY CHECK (id = 1),
+  store_name_bn TEXT NOT NULL DEFAULT 'তূলিকা',
+  store_name_en TEXT NOT NULL DEFAULT 'Tulika Boutique',
+  tagline_bn TEXT NOT NULL DEFAULT 'ঐতিহ্য, শিল্প ও আধুনিক ফ্যাশনের অনন্য মেলবন্ধন',
+  tagline_en TEXT NOT NULL DEFAULT 'A graceful blend of heritage, craft and modern elegance',
+  about_bn TEXT NOT NULL DEFAULT 'তূলিকা একটি বিশ্বস্ত বুটিক যেখানে প্রতিটি শাড়ি ও পোশাক শৈল্পিক যত্ন এবং খাঁটি সুতো দিয়ে তৈরি করা হয়। আমাদের লক্ষ্য বাংলার সমৃদ্ধ বয়ন ঐতিহ্য ও আধুনিক ফ্যাশনের মেলবন্ধন ঘটিয়ে আপনার ব্যক্তিত্বকে অনন্য করে তোলা।',
+  about_en TEXT NOT NULL DEFAULT 'Tulika is a bespoke boutique where every saree and outfit is crafted with artistic passion and pure fabrics. We celebrate Bengal''s rich weaving legacy alongside contemporary grace to make your style truly timeless.',
+  phone TEXT NOT NULL DEFAULT '+91 98765 43210',
+  whatsapp TEXT NOT NULL DEFAULT '919876543210',
+  address_bn TEXT NOT NULL DEFAULT '১২, শ্যামাপ্রসাদ মুখার্জি রোড, ভবানীপুর, কলকাতা ৭০০০২৫',
+  address_en TEXT NOT NULL DEFAULT '12, Shyama Prasad Mukherjee Road, Bhowanipore, Kolkata 700025',
+  hours_bn TEXT NOT NULL DEFAULT 'সোম - শনি: সকাল ১১টা থেকে রাত ৮টা (রবিবার বন্ধ)',
+  hours_en TEXT NOT NULL DEFAULT 'Mon - Sat: 11:00 AM to 8:00 PM (Sunday Closed)',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-create table if not exists public.orders (
-  id uuid primary key default gen_random_uuid(),
-  order_number text not null unique,
-  customer_name text not null check (length(customer_name) between 1 and 120),
-  phone text not null check (phone ~ '^[6-9][0-9]{9}$'),
-  address text not null check (length(address) between 5 and 500),
-  city text not null check (length(city) between 1 and 100),
-  pin_code text not null check (pin_code ~ '^[0-9]{6}$'),
-  notes text not null default '' check (length(notes) <= 1000),
-  payment_method text not null check (payment_method in ('cod','upi_manual')),
-  status text not null default 'new' check (status in ('new','confirmed','packed','shipped','delivered','cancelled')),
-  subtotal numeric(12,2) not null check (subtotal >= 0),
-  shipping_charge numeric(12,2) not null check (shipping_charge >= 0),
-  total numeric(12,2) not null check (total = subtotal + shipping_charge),
-  internal_notes text not null default '',
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-create index if not exists orders_created_at_idx on public.orders(created_at desc);
-create index if not exists orders_phone_created_idx on public.orders(phone, created_at desc);
+-- Trigger for settings updated_at
+DROP TRIGGER IF EXISTS tr_settings_updated_at ON public.settings;
+CREATE TRIGGER tr_settings_updated_at
+  BEFORE UPDATE ON public.settings
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_updated_at();
 
-create table if not exists public.order_items (
-  id uuid primary key default gen_random_uuid(),
-  order_id uuid not null references public.orders(id) on delete cascade,
-  product_id uuid references public.products(id) on delete set null,
-  product_name text not null,
-  size text not null,
-  quantity integer not null check (quantity between 1 and 20),
-  unit_price numeric(12,2) not null check (unit_price >= 0),
-  line_total numeric(12,2) not null check (line_total = unit_price * quantity)
+-- 6. ADMINS TABLE
+-- Gated admin authorization: user must exist in auth.users AND have a row in admins
+CREATE TABLE IF NOT EXISTS public.admins (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-create table if not exists public.reviews (
-  id uuid primary key default gen_random_uuid(),
-  customer_name text not null check (length(customer_name) between 1 and 100),
-  text_bn text not null check (length(text_bn) between 1 and 1000),
-  text_en text not null default '',
-  rating smallint not null default 5 check (rating between 1 and 5),
-  visible boolean not null default false,
-  created_at timestamptz not null default now()
-);
-
-create table if not exists public.settings (
-  id boolean primary key default true check (id),
-  boutique_name text not null default 'তুলিকা',
-  tagline_bn text not null default 'নিজস্বতা, বুনন আর রঙের গল্প।',
-  tagline_en text not null default 'Stories in color and weave.',
-  about_bn text not null default '',
-  about_en text not null default '',
-  address text not null default '১২, গড়িয়াহাট রোড, কলকাতা ৭০০০১৯',
-  phone text not null default '+91 98765 43210',
-  whatsapp_number text not null default '919876543210',
-  hours_bn text not null default 'সোম–শনি · সকাল ১১টা–রাত ৮টা',
-  hours_en text not null default 'Mon–Sat · 11 am–8 pm',
-  shipping_charge numeric(10,2) not null default 80 check (shipping_charge >= 0),
-  free_shipping_threshold numeric(12,2) not null default 2500 check (free_shipping_threshold >= 0),
-  hero_bn text not null default 'রঙে বুননে|আপনার গল্প',
-  hero_en text not null default 'A story|in every thread',
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists public.admins (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  created_at timestamptz not null default now()
-);
-
-create or replace function public.is_admin()
-returns boolean language sql stable security definer
-set search_path = public, pg_temp
-as $$
-  select exists (select 1 from public.admins where user_id = auth.uid());
+-- ==============================================================================
+-- SECURITY DEFINER HELPER: is_admin()
+-- Checks if currently authenticated user is registered in public.admins
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.admins
+    WHERE user_id = auth.uid()
+  );
 $$;
-revoke all on function public.is_admin() from public;
-grant execute on function public.is_admin() to anon, authenticated;
 
-alter table public.categories enable row level security;
-alter table public.products enable row level security;
-alter table public.product_images enable row level security;
-alter table public.product_sizes enable row level security;
-alter table public.orders enable row level security;
-alter table public.order_items enable row level security;
-alter table public.reviews enable row level security;
-alter table public.settings enable row level security;
-alter table public.admins enable row level security;
+-- ==============================================================================
+-- ROW LEVEL SECURITY (RLS) POLICIES
+-- Strict enforcement: public users are read-only for visible items.
+-- Anonymous access cannot read admins table or modify any table.
+-- Only verified admins can perform INSERT, UPDATE, DELETE.
+-- ==============================================================================
 
-drop policy if exists "Public sees visible categories" on public.categories;
-create policy "Public sees visible categories" on public.categories for select to anon, authenticated using (visible or public.is_admin());
-drop policy if exists "Admins manage categories" on public.categories;
-create policy "Admins manage categories" on public.categories for all to authenticated using (public.is_admin()) with check (public.is_admin());
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
 
-drop policy if exists "Public sees visible products" on public.products;
-create policy "Public sees visible products" on public.products for select to anon, authenticated using (visible or public.is_admin());
-drop policy if exists "Admins manage products" on public.products;
-create policy "Admins manage products" on public.products for all to authenticated using (public.is_admin()) with check (public.is_admin());
+-- Categories policies
+DROP POLICY IF EXISTS "Public can view categories" ON public.categories;
+CREATE POLICY "Public can view categories"
+  ON public.categories FOR SELECT
+  USING (true);
 
-drop policy if exists "Public sees images of visible products" on public.product_images;
-create policy "Public sees images of visible products" on public.product_images for select to anon, authenticated
-using (exists (select 1 from public.products p where p.id=product_id and (p.visible or public.is_admin())));
-drop policy if exists "Admins manage product images" on public.product_images;
-create policy "Admins manage product images" on public.product_images for all to authenticated using (public.is_admin()) with check (public.is_admin());
+DROP POLICY IF EXISTS "Admins can manage categories" ON public.categories;
+CREATE POLICY "Admins can manage categories"
+  ON public.categories FOR ALL
+  TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
 
-drop policy if exists "Public sees sizes of visible products" on public.product_sizes;
-create policy "Public sees sizes of visible products" on public.product_sizes for select to anon, authenticated
-using (exists (select 1 from public.products p where p.id=product_id and (p.visible or public.is_admin())));
-drop policy if exists "Admins manage sizes" on public.product_sizes;
-create policy "Admins manage sizes" on public.product_sizes for all to authenticated using (public.is_admin()) with check (public.is_admin());
+-- Products policies
+DROP POLICY IF EXISTS "Public can view visible products" ON public.products;
+CREATE POLICY "Public can view visible products"
+  ON public.products FOR SELECT
+  USING (is_visible = true OR public.is_admin());
 
-drop policy if exists "Public sees visible reviews" on public.reviews;
-create policy "Public sees visible reviews" on public.reviews for select to anon, authenticated using (visible or public.is_admin());
-drop policy if exists "Admins manage reviews" on public.reviews;
-create policy "Admins manage reviews" on public.reviews for all to authenticated using (public.is_admin()) with check (public.is_admin());
+DROP POLICY IF EXISTS "Admins can manage products" ON public.products;
+CREATE POLICY "Admins can manage products"
+  ON public.products FOR ALL
+  TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
 
-drop policy if exists "Public reads settings" on public.settings;
-create policy "Public reads settings" on public.settings for select to anon, authenticated using (true);
-drop policy if exists "Admins manage settings" on public.settings;
-create policy "Admins manage settings" on public.settings for all to authenticated using (public.is_admin()) with check (public.is_admin());
+-- Reviews policies
+DROP POLICY IF EXISTS "Public can view visible reviews" ON public.reviews;
+CREATE POLICY "Public can view visible reviews"
+  ON public.reviews FOR SELECT
+  USING (is_visible = true OR public.is_admin());
 
-drop policy if exists "Admins read admin list" on public.admins;
-create policy "Admins read admin list" on public.admins for select to authenticated using (public.is_admin());
-drop policy if exists "Admins manage admin list" on public.admins;
-create policy "Admins manage admin list" on public.admins for all to authenticated using (public.is_admin()) with check (public.is_admin());
+DROP POLICY IF EXISTS "Admins can manage reviews" ON public.reviews;
+CREATE POLICY "Admins can manage reviews"
+  ON public.reviews FOR ALL
+  TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
 
--- Orders are never directly readable/writable by customers. Tracking uses a phone-verified RPC.
-drop policy if exists "Admins manage orders" on public.orders;
-create policy "Admins manage orders" on public.orders for all to authenticated using (public.is_admin()) with check (public.is_admin());
-drop policy if exists "Admins manage order items" on public.order_items;
-create policy "Admins manage order items" on public.order_items for all to authenticated using (public.is_admin()) with check (public.is_admin());
+-- Settings policies
+DROP POLICY IF EXISTS "Public can view settings" ON public.settings;
+CREATE POLICY "Public can view settings"
+  ON public.settings FOR SELECT
+  USING (true);
 
-create or replace function public.create_order(
-  p_customer_name text,
-  p_phone text,
-  p_address text,
-  p_city text,
-  p_pin_code text,
-  p_notes text,
-  p_payment_method text,
-  p_items jsonb,
-  p_honeypot text default ''
+DROP POLICY IF EXISTS "Admins can manage settings" ON public.settings;
+CREATE POLICY "Admins can manage settings"
+  ON public.settings FOR ALL
+  TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
+
+-- Admins table policies (NO anonymous SELECT allowed!)
+DROP POLICY IF EXISTS "Authenticated can check admin row" ON public.admins;
+CREATE POLICY "Authenticated can check admin row"
+  ON public.admins FOR SELECT
+  TO authenticated
+  USING (auth.uid() = user_id OR public.is_admin());
+
+DROP POLICY IF EXISTS "Admins can manage admins" ON public.admins;
+CREATE POLICY "Admins can manage admins"
+  ON public.admins FOR ALL
+  TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
+
+-- ==============================================================================
+-- STORAGE BUCKET: product-images
+-- Public read, Admin-only upload/modify/delete. Max 5MB, jpeg/png/webp.
+-- ==============================================================================
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'product-images',
+  'product-images',
+  true,
+  5242880,
+  ARRAY['image/jpeg', 'image/png', 'image/webp']
 )
-returns jsonb
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  item jsonb;
-  product_row public.products%rowtype;
-  size_row public.product_sizes%rowtype;
-  new_order public.orders%rowtype;
-  v_subtotal numeric(12,2) := 0;
-  v_shipping numeric(12,2);
-  v_total numeric(12,2);
-  v_qty integer;
-  v_size text;
-  v_product_id uuid;
-  v_line_key text;
-  v_seen_lines text[] := array[]::text[];
-  v_order_number text;
-begin
-  if coalesce(p_honeypot,'') <> '' then raise exception 'Invalid order request'; end if;
-  if length(trim(coalesce(p_customer_name,''))) not between 1 and 120 then raise exception 'Invalid customer name'; end if;
-  if p_phone !~ '^[6-9][0-9]{9}$' then raise exception 'Enter a valid Indian phone number'; end if;
-  if length(trim(coalesce(p_address,''))) not between 5 and 500 then raise exception 'Enter a valid address'; end if;
-  if length(trim(coalesce(p_city,''))) not between 1 and 100 then raise exception 'Enter a valid city'; end if;
-  if p_pin_code !~ '^[0-9]{6}$' then raise exception 'Enter a valid PIN code'; end if;
-  if p_payment_method not in ('cod','upi_manual') then raise exception 'Invalid payment method'; end if;
-  if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) not between 1 and 30 then raise exception 'Invalid order items'; end if;
-  if (select count(*) from public.orders where phone=p_phone and created_at > now()-interval '1 hour') >= 5 then
-    raise exception 'Too many orders. Please try again later.';
-  end if;
+ON CONFLICT (id) DO UPDATE SET
+  public = true,
+  file_size_limit = 5242880,
+  allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp'];
 
-  for item in select value from jsonb_array_elements(p_items) order by value->>'product_id',value->>'size' loop
-    begin
-      v_product_id := (item->>'product_id')::uuid;
-      v_qty := (item->>'quantity')::integer;
-      v_size := trim(item->>'size');
-    exception when others then raise exception 'Invalid order item'; end;
-    if v_qty not between 1 and 20 or length(v_size) not between 1 and 40 then raise exception 'Invalid size or quantity'; end if;
-    v_line_key := v_product_id::text || chr(31) || v_size;
-    if v_line_key=any(v_seen_lines) then raise exception 'Duplicate product size line'; end if;
-    v_seen_lines := array_append(v_seen_lines,v_line_key);
-    select * into product_row from public.products where id=v_product_id and visible for update;
-    if not found then raise exception 'A product is no longer available'; end if;
-    select * into size_row from public.product_sizes where product_id=v_product_id and size=v_size for update;
-    if not found or size_row.stock < v_qty then raise exception 'A selected size is out of stock'; end if;
-    v_subtotal := v_subtotal + coalesce(product_row.discount_price,product_row.price)*v_qty;
-  end loop;
+-- Storage RLS policies
+DROP POLICY IF EXISTS "Public can read product images" ON storage.objects;
+CREATE POLICY "Public can read product images"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'product-images');
 
-  select case when v_subtotal >= free_shipping_threshold then 0 else shipping_charge end
-  into v_shipping from public.settings where id=true;
-  v_shipping := coalesce(v_shipping,0);
-  v_total := v_subtotal + v_shipping;
-  v_order_number := 'TUL-' || to_char(now() at time zone 'Asia/Kolkata','YYYYMMDD') || '-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
+DROP POLICY IF EXISTS "Admins can upload product images" ON storage.objects;
+CREATE POLICY "Admins can upload product images"
+  ON storage.objects FOR INSERT
+  TO authenticated
+  WITH CHECK (bucket_id = 'product-images' AND public.is_admin());
 
-  insert into public.orders(order_number,customer_name,phone,address,city,pin_code,notes,payment_method,subtotal,shipping_charge,total)
-  values(v_order_number,trim(p_customer_name),p_phone,trim(p_address),trim(p_city),p_pin_code,coalesce(trim(p_notes),''),p_payment_method,v_subtotal,v_shipping,v_total)
-  returning * into new_order;
+DROP POLICY IF EXISTS "Admins can update product images" ON storage.objects;
+CREATE POLICY "Admins can update product images"
+  ON storage.objects FOR UPDATE
+  TO authenticated
+  USING (bucket_id = 'product-images' AND public.is_admin());
 
-  for item in select value from jsonb_array_elements(p_items) order by value->>'product_id',value->>'size' loop
-    v_product_id := (item->>'product_id')::uuid;
-    v_qty := (item->>'quantity')::integer;
-    v_size := trim(item->>'size');
-    select * into product_row from public.products where id=v_product_id;
-    select * into size_row from public.product_sizes where product_id=v_product_id and size=v_size for update;
-    update public.product_sizes set stock=stock-v_qty where id=size_row.id;
-    insert into public.order_items(order_id,product_id,product_name,size,quantity,unit_price,line_total)
-    values(new_order.id,product_row.id,product_row.name_bn,v_size,v_qty,coalesce(product_row.discount_price,product_row.price),coalesce(product_row.discount_price,product_row.price)*v_qty);
-  end loop;
-  return jsonb_build_object('order_number',new_order.order_number,'total',new_order.total,'shipping_charge',new_order.shipping_charge);
-end;
-$$;
-revoke all on function public.create_order(text,text,text,text,text,text,text,jsonb,text) from public;
-grant execute on function public.create_order(text,text,text,text,text,text,text,jsonb,text) to anon, authenticated;
-
-create or replace function public.track_order(p_order_number text,p_phone text)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public, pg_temp
-as $$
-declare result jsonb;
-begin
-  if p_phone !~ '^[6-9][0-9]{9}$' then raise exception 'Order not found'; end if;
-  select jsonb_build_object(
-    'order_number',o.order_number,'status',o.status,'created_at',o.created_at,'total',o.total,
-    'items',coalesce((select jsonb_agg(jsonb_build_object('name',oi.product_name,'size',oi.size,'quantity',oi.quantity,'line_total',oi.line_total)) from public.order_items oi where oi.order_id=o.id),'[]'::jsonb)
-  ) into result
-  from public.orders o where upper(o.order_number)=upper(trim(p_order_number)) and o.phone=p_phone;
-  if result is null then raise exception 'Order not found'; end if;
-  return result;
-end;
-$$;
-revoke all on function public.track_order(text,text) from public;
-grant execute on function public.track_order(text,text) to anon, authenticated;
-
--- Create a public bucket. Its objects are readable publicly, but writes are admin-only.
-insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
-values('product-images','product-images',true,6291456,array['image/jpeg'])
-on conflict(id) do update set public=true,file_size_limit=6291456,allowed_mime_types=array['image/jpeg'];
-drop policy if exists "Public reads product photos" on storage.objects;
-create policy "Public reads product photos" on storage.objects for select to anon,authenticated using (bucket_id='product-images');
-drop policy if exists "Admins upload product photos" on storage.objects;
-create policy "Admins upload product photos" on storage.objects for insert to authenticated with check (bucket_id='product-images' and public.is_admin());
-drop policy if exists "Admins update product photos" on storage.objects;
-create policy "Admins update product photos" on storage.objects for update to authenticated using (bucket_id='product-images' and public.is_admin()) with check (bucket_id='product-images' and public.is_admin());
-drop policy if exists "Admins delete product photos" on storage.objects;
-create policy "Admins delete product photos" on storage.objects for delete to authenticated using (bucket_id='product-images' and public.is_admin());
-
-revoke all on public.categories,public.products,public.product_images,public.product_sizes,public.orders,public.order_items,public.reviews,public.settings,public.admins from anon,authenticated;
-grant select on public.categories,public.products,public.product_images,public.product_sizes,public.reviews,public.settings to anon,authenticated;
-grant select,insert,update,delete on public.categories,public.products,public.product_images,public.product_sizes,public.reviews,public.settings to authenticated;
-grant select on public.orders,public.order_items,public.admins to authenticated;
-grant insert,update,delete on public.orders,public.order_items,public.admins to authenticated;
+DROP POLICY IF EXISTS "Admins can delete product images" ON storage.objects;
+CREATE POLICY "Admins can delete product images"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (bucket_id = 'product-images' AND public.is_admin());

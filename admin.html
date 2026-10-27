@@ -1,90 +1,530 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="bn">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex,nofollow">
-  <title>অ্যাডমিন — তুলিকা</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="তূলিকা বুটিক অ্যাডমিন প্যানেল — পণ্য ও স্টোর ব্যবস্থাপনা">
+  <meta name="i18n-title-key" content="adminPortal">
+
+  <title>তূলিকা অ্যাডমিন প্যানেল</title>
+
+  <!-- Inline SVG Favicon -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%235A1B33'/%3E%3Cpath d='M20 44 C24 30, 40 30, 44 20 C40 34, 24 34, 20 44 Z' fill='%23E3A02B'/%3E%3Ccircle cx='46' cy='18' r='4' fill='%23E3A02B'/%3E%3C/svg%3E">
+
+  <!-- Google Fonts: Tiro Bangla & Hind Siliguri -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Tiro+Bangla&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/store.css">
-  <style>
-    .admin-wrap{width:min(1440px,calc(100% - 2rem));margin:1.5rem auto 4rem}.admin-head,.admin-toolbar,.admin-actions,.admin-tabs,.inline{display:flex;align-items:center;gap:.65rem;flex-wrap:wrap}.admin-head{justify-content:space-between;margin-bottom:1.2rem}.admin-head h1{font:400 var(--s2)/1.2 var(--display);color:var(--wine);margin:0}.admin-tabs{margin:1rem 0;padding:.4rem;border:1px solid var(--line);border-radius:1rem;background:var(--surface)}.admin-tabs button{border:0;border-radius:.7rem;padding:.55rem .85rem;color:var(--muted);background:transparent;cursor:pointer}.admin-tabs button[aria-selected=true]{background:var(--wine);color:white}.admin-pane{display:none}.admin-pane.active{display:block}.admin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,13rem),1fr));gap:1rem}.metric{padding:1.2rem;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}.metric small{display:block;color:var(--muted)}.metric strong{font:1.8rem var(--display);color:var(--wine)}.admin-toolbar{justify-content:space-between;margin:1rem 0}.admin-toolbar .field{min-width:min(100%,14rem)}.admin-table-wrap{overflow:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}.admin-table{width:100%;border-collapse:collapse;min-width:720px}.admin-table th,.admin-table td{padding:.75rem .85rem;text-align:start;border-bottom:1px solid var(--line);vertical-align:middle}.admin-table th{color:var(--wine);font-weight:700;white-space:nowrap}.admin-table tr:last-child td{border-bottom:0}.admin-table .thumb{width:3.3rem;height:3.8rem;object-fit:cover;border-radius:.45rem;background:var(--blush)}.admin-table button.link-button{padding:0;border:0;background:none;color:var(--wine);text-decoration:underline;cursor:pointer}.admin-status{display:inline-block;padding:.12rem .55rem;border-radius:99px;background:var(--blush);white-space:nowrap}.admin-error{margin:1rem 0}.admin-empty{padding:1.4rem;text-align:center;color:var(--muted)}.admin-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr));gap:.7rem;flex:1}.admin-card{margin-block:1rem}.admin-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem}.admin-form .full{grid-column:1/-1}.admin-form .field label,.field>label{font-weight:600}.admin-form input[type=checkbox]{width:1.1rem;height:1.1rem;accent-color:var(--wine)}.admin-form .check{padding:.4rem 0}.admin-form textarea{min-height:5rem}.admin-login{max-width:28rem;margin:10vh auto}.admin-login h1{font:var(--s2) var(--display);color:var(--wine)}dialog{width:min(760px,calc(100% - 1.5rem));max-height:90vh;overflow:auto;padding:1.2rem;border:1px solid var(--line);border-radius:1rem;background:var(--paper);color:var(--ink);box-shadow:var(--shadow)}dialog::backdrop{background:rgba(32,18,24,.6)}dialog h2{margin:.2rem 0 1rem;color:var(--wine);font:1.6rem var(--display)}.dialog-head{display:flex;justify-content:space-between;align-items:start;gap:1rem}.icon-button{width:2.5rem;height:2.5rem;border:1px solid var(--line);border-radius:50%;background:var(--surface);cursor:pointer}.order-lines{margin:1rem 0;border-collapse:collapse;width:100%}.order-lines th,.order-lines td{padding:.55rem;text-align:start;border-bottom:1px solid var(--line)}.image-list{display:flex;gap:.5rem;overflow:auto}.image-item{position:relative;flex:0 0 5rem}.image-item img{width:5rem;height:6rem;object-fit:cover;border-radius:.4rem}.image-item button{position:absolute;top:0;right:0;border:0;border-radius:50%;background:#922;color:#fff;cursor:pointer}.hint{font-size:.88rem;color:var(--muted)}.admin-notice{margin:1rem 0}.hidden{display:none!important}.sort-controls{display:flex;gap:.25rem}.admin-footer{padding:1rem 0;color:var(--muted);font-size:.9rem}.print-only{display:none}
-    @media(max-width:640px){.admin-wrap{width:calc(100% - 1rem);margin-top:.7rem}.admin-form{grid-template-columns:1fr}.admin-form .full{grid-column:auto}.admin-head{align-items:flex-start}.admin-tabs{overflow:auto;flex-wrap:nowrap}.admin-tabs button{white-space:nowrap}.admin-toolbar{align-items:stretch}.admin-toolbar .button{width:100%}}
-    @media print{body>*{display:none!important}#print-root{display:block!important;background:white;color:#111;padding:1.5rem;font:14px Arial,sans-serif}#print-root h1{margin-top:0}#print-root table{width:100%;border-collapse:collapse}#print-root th,#print-root td{padding:.5rem;border-bottom:1px solid #ccc;text-align:left}}
-  </style>
-  <script type="module" src="assets/admin.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Tiro+Bangla:ital@0;1&display=swap" rel="stylesheet">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
-  <main id="admin-app" class="admin-wrap">
-    <div id="global-error" class="error admin-error" role="alert" hidden></div>
-    <section id="login-view" class="card admin-login">
-      <a class="brand" href="index.html"><span class="brand-mark">তু</span><span class="brand-name">তুলিকা</span></a>
-      <h1 data-i18n="loginTitle">অ্যাডমিন লগইন</h1>
-      <p class="muted" data-i18n="loginHelp">অনুমোদিত অ্যাডমিন ইমেল দিয়ে সাইন ইন করুন।</p>
-      <form id="login-form" class="admin-form">
-        <div class="field full"><label for="login-email" data-i18n="email">ইমেল</label><input id="login-email" name="email" type="email" autocomplete="username" required></div>
-        <div class="field full"><label for="login-password" data-i18n="password">পাসওয়ার্ড</label><input id="login-password" name="password" type="password" autocomplete="current-password" required></div>
-        <div class="full"><button class="button" type="submit" data-i18n="signIn">সাইন ইন</button></div>
+<body class="admin-body">
+  <!-- Admin Header -->
+  <header class="admin-header">
+    <div class="wrap admin-header-inner">
+      <div class="brand-link">
+        <svg class="brand-logo-svg" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+          <rect width="48" height="48" rx="12" fill="#5A1B33"/>
+          <path d="M15 33 C18 22, 30 22, 33 15 C30 25, 18 25, 15 33 Z" fill="#E3A02B"/>
+          <circle cx="34.5" cy="13.5" r="3" fill="#E3A02B"/>
+        </svg>
+        <div class="brand-text">
+          <h1 data-i18n="adminPortal">তূলিকা অ্যাডমিন প্যানেল</h1>
+          <p data-i18n="adminSubtitle">পণ্য সম্ভার, বিভাগ, রিভিউ এবং স্টোর সেটিংস ব্যবস্থাপনা</p>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Return to Public Site -->
+        <a href="index.html" class="pill-btn" data-i18n="returnHome">মূল ওয়েবসাইটে ফিরুন</a>
+
+        <!-- Language Switcher -->
+        <button id="admin-lang-toggle" class="pill-btn" data-lang-toggle aria-label="Switch language">
+          English
+        </button>
+
+        <!-- Sign Out Button (visible when logged in) -->
+        <button id="admin-logout-btn" class="btn btn-secondary btn-sm" style="display: none;" data-i18n="logoutBtn">
+          লগআউট
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap" style="margin-top: 1.5rem;">
+    <!-- Setup Notice Container for Placeholder Warning -->
+    <div id="admin-setup-notice-slot"></div>
+
+    <!-- 1. LOGIN SCREEN (shown if unauthenticated) -->
+    <section id="admin-login-section" class="admin-card" style="max-width: 460px; margin: 3rem auto;">
+      <h2 style="font-size: 1.6rem; margin-bottom: 0.5rem;" data-i18n="loginTitle">অ্যাডমিন সাইন ইন</h2>
+      <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.75rem;" data-i18n="loginSubtitle">
+        সুপাবেস নিবন্ধিত অ্যাডমিন অ্যাকাউন্ট দিয়ে প্রবেশ করুন
+      </p>
+
+      <form id="admin-login-form">
+        <div class="form-group">
+          <label for="login-email" data-i18n="emailLabel">ইমেইল অ্যাড্রেস</label>
+          <input type="email" id="login-email" class="form-control" required autocomplete="email" placeholder="owner@tulika.example">
+        </div>
+
+        <div class="form-group">
+          <label for="login-password" data-i18n="passwordLabel">পাসওয়ার্ড</label>
+          <input type="password" id="login-password" class="form-control" required autocomplete="current-password" placeholder="••••••••">
+        </div>
+
+        <div id="login-error-msg" style="color: var(--danger); font-size: 0.875rem; margin-bottom: 1rem; display: none;"></div>
+
+        <button type="submit" id="login-submit-btn" class="btn btn-primary" style="width: 100%;" data-i18n="loginBtn">
+          লগইন করুন
+        </button>
       </form>
     </section>
-    <section id="dashboard-view" hidden>
-      <header class="admin-head">
-        <div><p class="eyebrow" data-i18n="adminLabel">তুলিকা · অ্যাডমিন</p><h1 data-i18n="dashboard">ড্যাশবোর্ড</h1><span id="admin-email" class="hint"></span></div>
-        <div class="admin-actions"><button class="lang-button" id="language-toggle" type="button" aria-label="Toggle language">EN</button><button class="button secondary" id="sign-out" type="button" data-i18n="signOut">সাইন আউট</button></div>
-      </header>
-      <div id="admin-message" class="notice admin-notice" role="status" hidden></div>
-      <nav class="admin-tabs" role="tablist">
-        <button type="button" role="tab" data-tab="overview" aria-selected="true">ড্যাশবোর্ড</button>
-        <button type="button" role="tab" data-tab="orders" aria-selected="false">অর্ডার</button>
-        <button type="button" role="tab" data-tab="products" aria-selected="false">পণ্য</button>
-        <button type="button" role="tab" data-tab="categories" aria-selected="false">বিভাগ</button>
-        <button type="button" role="tab" data-tab="reviews" aria-selected="false">রিভিউ</button>
-        <button type="button" role="tab" data-tab="settings" aria-selected="false">সেটিংস</button>
-      </nav>
-      <section id="tab-overview" class="admin-pane active" role="tabpanel">
-        <div class="admin-grid">
-          <article class="metric"><small data-i18n="todayOrders">আজকের অর্ডার</small><strong id="metric-today">—</strong></article>
-          <article class="metric"><small data-i18n="pendingOrders">অপেক্ষমাণ অর্ডার</small><strong id="metric-pending">—</strong></article>
-          <article class="metric"><small data-i18n="lowStock">কম স্টক</small><strong id="metric-stock">—</strong></article>
-          <article class="metric"><small data-i18n="monthSales">এই মাসের বিক্রি</small><strong id="metric-sales">—</strong></article>
-        </div>
-        <section class="card admin-card"><div class="section-head"><h2 class="section-title" data-i18n="recentOrders">সাম্প্রতিক অর্ডার</h2><button class="button secondary" data-go-tab="orders" type="button" data-i18n="allOrders">সব অর্ডার</button></div><div id="recent-orders"></div></section>
-      </section>
-      <section id="tab-orders" class="admin-pane" role="tabpanel">
-        <div class="admin-toolbar"><div class="admin-filters">
-          <div class="field"><label for="order-search" data-i18n="search">খুঁজুন</label><input id="order-search" class="filter-input" type="search" placeholder="ফোন / অর্ডার নম্বর"></div>
-          <div class="field"><label for="order-status-filter" data-i18n="status">অবস্থা</label><select id="order-status-filter"><option value="">সব</option><option value="new">নতুন</option><option value="confirmed">নিশ্চিত</option><option value="packed">প্যাকড</option><option value="shipped">পাঠানো</option><option value="delivered">ডেলিভারড</option><option value="cancelled">বাতিল</option></select></div>
-          <div class="field"><label for="order-date-filter" data-i18n="date">তারিখ</label><input id="order-date-filter" type="date"></div>
-        </div><button id="export-orders" class="button secondary" type="button" data-i18n="exportCsv">CSV ডাউনলোড</button></div>
-        <div id="orders-table"></div>
-      </section>
-      <section id="tab-products" class="admin-pane" role="tabpanel">
-        <div class="admin-toolbar"><div class="admin-filters">
-          <div class="field"><label for="product-search" data-i18n="search">খুঁজুন</label><input id="product-search" type="search" placeholder="নাম / স্লাগ"></div>
-          <div class="field"><label for="product-category-filter" data-i18n="category">বিভাগ</label><select id="product-category-filter"><option value="">সব বিভাগ</option></select></div>
-          <div class="field"><label for="product-visible-filter" data-i18n="visibility">দৃশ্যমানতা</label><select id="product-visible-filter"><option value="">সব</option><option value="true">দৃশ্যমান</option><option value="false">লুকানো</option></select></div>
-        </div><button id="add-product" class="button" type="button" data-i18n="addProduct">+ পণ্য যোগ করুন</button></div>
-        <div id="products-table"></div>
-      </section>
-      <section id="tab-categories" class="admin-pane" role="tabpanel">
-        <div class="section-head"><h2 class="section-title" data-i18n="categories">বিভাগ</h2><button id="add-category" class="button" type="button" data-i18n="addCategory">+ বিভাগ যোগ করুন</button></div>
-        <div id="categories-table"></div>
-      </section>
-      <section id="tab-reviews" class="admin-pane" role="tabpanel">
-        <div class="section-head"><h2 class="section-title" data-i18n="reviews">রিভিউ</h2><button id="add-review" class="button" type="button" data-i18n="addReview">+ রিভিউ যোগ করুন</button></div>
-        <div id="reviews-table"></div>
-      </section>
-      <section id="tab-settings" class="admin-pane" role="tabpanel">
-        <h2 class="section-title" data-i18n="settings">সেটিংস</h2>
-        <form id="settings-form" class="card admin-form"></form>
-      </section>
-      <footer class="admin-footer">Tulika · Supabase Admin</footer>
+
+    <!-- 2. UNAUTHORIZED MESSAGE (shown if authenticated in Supabase but NOT in admins table) -->
+    <section id="admin-unauthorized-section" class="admin-card" style="max-width: 500px; margin: 3rem auto; text-align: center; display: none;">
+      <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#BA1A1A" stroke-width="2" style="margin: 0 auto 1rem;">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="15" y1="9" x2="9" y2="15"></line>
+        <line x1="9" y1="9" x2="15" y2="15"></line>
+      </svg>
+      <h2 style="font-size: 1.5rem; color: var(--danger); margin-bottom: 0.5rem;" data-i18n="unauthorizedTitle">অননুমোদিত ব্যবহারকারী</h2>
+      <p style="color: var(--text-muted); margin-bottom: 1.5rem;" data-i18n="unauthorizedMsg">
+        আপনার অ্যাকাউন্টটি সিস্টেমের admins টেবিলে নিবন্ধিত নয়। অনুগ্রহ করে অনুমোদিত অ্যাডমিন হিসেবে সাইন ইন করুন।
+      </p>
+      <div style="display: flex; gap: 1rem; justify-content: center;">
+        <button id="unauthorized-logout-btn" class="btn btn-secondary" data-i18n="logoutBtn">লগআউট</button>
+        <a href="index.html" class="btn btn-primary" data-i18n="returnHome">মূল ওয়েবসাইটে ফিরুন</a>
+      </div>
     </section>
-  </main>
-  <dialog id="entity-dialog" aria-labelledby="dialog-title"><div class="dialog-head"><h2 id="dialog-title"></h2><button class="icon-button" type="button" data-close-dialog aria-label="Close">×</button></div><div id="dialog-content"></div></dialog>
-  <dialog id="confirm-dialog" aria-labelledby="confirm-title"><div class="dialog-head"><h2 id="confirm-title"></h2><button class="icon-button" type="button" data-cancel-confirm aria-label="Close">×</button></div><p id="confirm-text"></p><div class="admin-actions"><button id="confirm-cancel" class="button secondary" type="button">বাতিল</button><button id="confirm-accept" class="button" type="button">নিশ্চিত</button></div></dialog>
-  <div id="print-root" class="print-only"></div>
+
+    <!-- 3. ADMIN DASHBOARD & TABS (NEVER shown to non-admins) -->
+    <div id="admin-dashboard-container" style="display: none;">
+      <!-- Stats Counters -->
+      <div class="admin-stats-grid">
+        <div class="stat-card">
+          <div class="stat-num" id="stat-total-products">0</div>
+          <div class="stat-label" data-i18n="statTotalProducts">মোট পণ্য</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="stat-visible-products">0</div>
+          <div class="stat-label" data-i18n="statVisibleProducts">প্রদর্শিত পণ্য</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="stat-soldout-products">0</div>
+          <div class="stat-label" data-i18n="statSoldOut">স্টক শেষ</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="stat-categories-count">0</div>
+          <div class="stat-label" data-i18n="statCategories">মোট বিভাগ</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num" id="stat-reviews-count">0</div>
+          <div class="stat-label" data-i18n="statReviews">মোট রিভিউ</div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="admin-nav-tabs" role="tablist">
+        <button class="admin-nav-tab active" data-tab="products" data-i18n="tabProducts">পণ্য তালিকা</button>
+        <button class="admin-nav-tab" data-tab="categories" data-i18n="tabCategories">বিভাগ সমূহ</button>
+        <button class="admin-nav-tab" data-tab="settings" data-i18n="tabSettings">স্টোর সেটিংস</button>
+        <button class="admin-nav-tab" data-tab="reviews" data-i18n="tabReviews">রিভিউ সমূহ</button>
+        <button class="admin-nav-tab" data-tab="storage" data-i18n="tabStorage">ইমেজ স্টোরেজ</button>
+      </nav>
+
+      <!-- TAB PANEL: PRODUCTS -->
+      <section id="panel-products" class="admin-card">
+        <div style="display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <button id="add-product-btn" class="btn btn-primary" data-i18n="addProduct">
+            + নতুন পণ্য যোগ করুন
+          </button>
+
+          <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+            <select id="admin-category-filter" class="form-control" style="width: auto;">
+              <option value="all">সকল বিভাগ</option>
+            </select>
+            <input type="search" id="admin-product-search" class="form-control" placeholder="পণ্য খুঁজুন..." style="width: 220px;">
+          </div>
+        </div>
+
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th style="width: 70px;">ছবি</th>
+                <th>নাম (বাংলা / ইংরেজি)</th>
+                <th>বিভাগ</th>
+                <th>মূল্য</th>
+                <th>স্টক</th>
+                <th>অবস্থা</th>
+                <th style="text-align: right;">অ্যাকশন</th>
+              </tr>
+            </thead>
+            <tbody id="admin-products-tbody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div id="admin-products-pagination" style="display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1.25rem;">
+          <!-- Prev / Next buttons -->
+        </div>
+      </section>
+
+      <!-- TAB PANEL: CATEGORIES -->
+      <section id="panel-categories" class="admin-card" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <div>
+            <h3 style="font-size: 1.3rem;" data-i18n="tabCategories">বিভাগ সমূহ</h3>
+            <p style="color: var(--text-muted); font-size: 0.85rem;" data-i18n="reorderHint">বাটন ব্যবহার করে সাজানোর ক্রম পরিবর্তন করুন</p>
+          </div>
+          <button id="add-category-btn" class="btn btn-primary" data-i18n="addCategory">
+            + নতুন বিভাগ যোগ করুন
+          </button>
+        </div>
+
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th style="width: 80px;">ক্রম</th>
+                <th>নাম (বাংলা)</th>
+                <th>নাম (ইংরেজি)</th>
+                <th>স্লাগ</th>
+                <th style="text-align: right;">অ্যাকশন</th>
+              </tr>
+            </thead>
+            <tbody id="admin-categories-tbody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB PANEL: SETTINGS -->
+      <section id="panel-settings" class="admin-card" style="display: none;">
+        <h3 style="font-size: 1.3rem; margin-bottom: 1.5rem;" data-i18n="storeSettings">স্টোর ও যোগাযোগ সেটিংস</h3>
+
+        <form id="admin-settings-form">
+          <div class="form-row form-row-2">
+            <div class="form-group">
+              <label for="setting-name-bn" data-i18n="storeNameBn">দোকানের নাম (বাংলা)</label>
+              <input type="text" id="setting-name-bn" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="setting-name-en" data-i18n="storeNameEn">দোকানের নাম (ইংরেজি)</label>
+              <input type="text" id="setting-name-en" class="form-control" required>
+            </div>
+          </div>
+
+          <div class="form-row form-row-2">
+            <div class="form-group">
+              <label for="setting-tagline-bn" data-i18n="taglineBn">ট্যাগলাইন (বাংলা)</label>
+              <input type="text" id="setting-tagline-bn" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="setting-tagline-en" data-i18n="taglineEn">ট্যাগলাইন (ইংরেজি)</label>
+              <input type="text" id="setting-tagline-en" class="form-control" required>
+            </div>
+          </div>
+
+          <div class="form-row form-row-2">
+            <div class="form-group">
+              <label for="setting-about-bn" data-i18n="aboutBn">আমাদের সম্পর্কে (বাংলা)</label>
+              <textarea id="setting-about-bn" class="form-control" rows="3" required></textarea>
+            </div>
+            <div class="form-group">
+              <label for="setting-about-en" data-i18n="aboutEn">আমাদের সম্পর্কে (ইংরেজি)</label>
+              <textarea id="setting-about-en" class="form-control" rows="3" required></textarea>
+            </div>
+          </div>
+
+          <div class="form-row form-row-2">
+            <div class="form-group">
+              <label for="setting-phone" data-i18n="phone">ফোন নম্বর</label>
+              <input type="text" id="setting-phone" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="setting-whatsapp" data-i18n="whatsappNumber">হোয়াটসঅ্যাপ নম্বর (৮–১৫ সংখ্যার কোড সহ, কোনো চিহ্ন নয়)</label>
+              <input type="text" id="setting-whatsapp" class="form-control" required pattern="[0-9]{8,15}" title="8 to 15 digits only">
+              <small style="color: var(--text-muted); font-size: 0.8rem;">উদাহরণ: 919876543210 (দেশের কোড সহ শুধুমাত্র সংখ্যা)</small>
+            </div>
+          </div>
+
+          <div class="form-row form-row-2">
+            <div class="form-group">
+              <label for="setting-address-bn" data-i18n="addressBn">ঠিকানা (বাংলা)</label>
+              <input type="text" id="setting-address-bn" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="setting-address-en" data-i18n="addressEn">ঠিকানা (ইংরেজি)</label>
+              <input type="text" id="setting-address-en" class="form-control" required>
+            </div>
+          </div>
+
+          <div class="form-row form-row-2">
+            <div class="form-group">
+              <label for="setting-hours-bn" data-i18n="hoursBn">কাজের সময় (বাংলা)</label>
+              <input type="text" id="setting-hours-bn" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="setting-hours-en" data-i18n="hoursEn">কাজের সময় (ইংরেজি)</label>
+              <input type="text" id="setting-hours-en" class="form-control" required>
+            </div>
+          </div>
+
+          <button type="submit" id="save-settings-btn" class="btn btn-primary" data-i18n="saveSettings">
+            সেটিংস আপডেট করুন
+          </button>
+        </form>
+      </section>
+
+      <!-- TAB PANEL: REVIEWS -->
+      <section id="panel-reviews" class="admin-card" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <h3 style="font-size: 1.3rem;" data-i18n="tabReviews">রিভিউ সমূহ</h3>
+          <button id="add-review-btn" class="btn btn-primary" data-i18n="addReview">
+            + নতুন রিভিউ যোগ করুন
+          </button>
+        </div>
+
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>লেখক ও শহর</th>
+                <th>রেটিং</th>
+                <th>মন্তব্য (বাংলা)</th>
+                <th>দৃশ্যমানতা</th>
+                <th style="text-align: right;">অ্যাকশন</th>
+              </tr>
+            </thead>
+            <tbody id="admin-reviews-tbody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TAB PANEL: STORAGE -->
+      <section id="panel-storage" class="admin-card" style="display: none;">
+        <h3 style="font-size: 1.3rem; margin-bottom: 0.5rem;" data-i18n="cleanOrphanImages">অব্যবহৃত ছবি খুঁজুন ও মুছুন (Clean Orphans)</h3>
+        <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem;">
+          Supabase Storage এর <code>product-images</code> বাকেটে থাকা যেসকল ছবি কোনো পণ্যের সাথে যুক্ত নেই, সেগুলি স্ক্যান করে স্থায়ীভাবে মুছে ফেলা যায় যাতে ফ্রি স্টোরেজ সীমার সাশ্রয় হয়।
+        </p>
+
+        <button id="scan-orphans-btn" class="btn btn-secondary">
+          🔍 অব্যবহৃত ছবির স্ক্যান শুরু করুন
+        </button>
+
+        <div id="orphan-results-box" style="margin-top: 1.5rem; display: none;"></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- CUSTOM IN-PAGE MODALS (Never window.confirm) -->
+
+  <!-- 1. PRODUCT MODAL (Add / Edit) -->
+  <div id="product-modal" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="product-modal-title">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="product-modal-title" data-i18n="addProduct">নতুন পণ্য যোগ করুন</h3>
+        <button type="button" class="modal-close-btn" id="close-product-modal-btn" aria-label="Close">&times;</button>
+      </div>
+      <form id="product-form">
+        <div class="modal-body">
+          <input type="hidden" id="modal-product-id">
+          <input type="hidden" id="modal-product-existing-image">
+
+          <div class="form-row form-row-2">
+            <div class="form-group">
+              <label for="modal-product-name-bn" data-i18n="productNameBn">পণ্যের নাম (বাংলা)</label>
+              <input type="text" id="modal-product-name-bn" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="modal-product-name-en" data-i18n="productNameEn">পণ্যের নাম (ইংরেজি)</label>
+              <input type="text" id="modal-product-name-en" class="form-control" required>
+            </div>
+          </div>
+
+          <div class="form-row form-row-2">
+            <div class="form-group">
+              <label for="modal-product-category" data-i18n="category">বিভাগ</label>
+              <select id="modal-product-category" class="form-control" required></select>
+            </div>
+            <div class="form-group">
+              <label for="modal-product-price" data-i18n="priceLabel">মূল্য (₹)</label>
+              <input type="number" id="modal-product-price" class="form-control" min="0" step="1" required>
+            </div>
+          </div>
+
+          <div class="form-row form-row-2">
+            <div class="form-group">
+              <label for="modal-product-stock" data-i18n="stockStatus">স্টক অবস্থা</label>
+              <select id="modal-product-stock" class="form-control" required>
+                <option value="in_stock">স্টকে আছে (In Stock)</option>
+                <option value="sold_out">স্টক শেষ (Sold Out)</option>
+              </select>
+            </div>
+            <div class="form-group" style="display: flex; flex-direction: column; justify-content: center;">
+              <label class="form-check">
+                <input type="checkbox" id="modal-product-featured">
+                <span data-i18n="featuredQuestion">হোমপেজে ফিচার্ড?</span>
+              </label>
+              <label class="form-check">
+                <input type="checkbox" id="modal-product-new">
+                <span data-i18n="newQuestion">নতুন আগমন (New Badge)?</span>
+              </label>
+              <label class="form-check">
+                <input type="checkbox" id="modal-product-visible" checked>
+                <span data-i18n="visibleQuestion">ওয়েবসাইটে প্রদর্শিত হবে?</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="modal-product-desc-bn" data-i18n="descriptionBn">বর্ণনা (বাংলা)</label>
+            <textarea id="modal-product-desc-bn" class="form-control" rows="2"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="modal-product-desc-en" data-i18n="descriptionEn">বর্ণনা (ইংরেজি)</label>
+            <textarea id="modal-product-desc-en" class="form-control" rows="2"></textarea>
+          </div>
+
+          <!-- Image Upload / Preview -->
+          <div class="form-group">
+            <label data-i18n="productImage">পণ্যের ছবি (ম্যাক্স ১২০০px, অটো কম্প্রেস)</label>
+            <input type="file" id="modal-product-file" class="form-control" accept="image/jpeg,image/png,image/webp">
+            <div id="modal-image-preview-box" style="margin-top: 0.75rem; display: flex; align-items: center; gap: 1rem;">
+              <img id="modal-product-preview-img" src="" alt="Preview" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); display: none;">
+              <span id="modal-image-status-text" style="font-size: 0.825rem; color: var(--text-muted);"></span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-product-modal-btn" data-i18n="cancel">বাতিল</button>
+          <button type="submit" id="save-product-submit-btn" class="btn btn-primary" data-i18n="save">সংরক্ষণ করুন</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. CATEGORY MODAL (Add / Edit) -->
+  <div id="category-modal" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
+    <div class="modal-dialog" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 id="category-modal-title" data-i18n="addCategory">নতুন বিভাগ যোগ করুন</h3>
+        <button type="button" class="modal-close-btn" id="close-category-modal-btn" aria-label="Close">&times;</button>
+      </div>
+      <form id="category-form">
+        <div class="modal-body">
+          <input type="hidden" id="modal-category-id">
+
+          <div class="form-group">
+            <label for="modal-category-name-bn" data-i18n="categoryNameBn">বিভাগের নাম (বাংলা)</label>
+            <input type="text" id="modal-category-name-bn" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label for="modal-category-name-en" data-i18n="categoryNameEn">বিভাগের নাম (ইংরেজি)</label>
+            <input type="text" id="modal-category-name-en" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label for="modal-category-slug" data-i18n="categorySlug">স্লাগ (ইংরেজি কোড)</label>
+            <input type="text" id="modal-category-slug" class="form-control" required pattern="[a-z0-9_-]+" title="Lowercase letters, numbers, hyphens">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-category-modal-btn" data-i18n="cancel">বাতিল</button>
+          <button type="submit" id="save-category-submit-btn" class="btn btn-primary" data-i18n="save">সংরক্ষণ করুন</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. REVIEW MODAL (Add / Edit) -->
+  <div id="review-modal" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="review-modal-title">
+    <div class="modal-dialog" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 id="review-modal-title" data-i18n="addReview">নতুন রিভিউ যোগ করুন</h3>
+        <button type="button" class="modal-close-btn" id="close-review-modal-btn" aria-label="Close">&times;</button>
+      </div>
+      <form id="review-form">
+        <div class="modal-body">
+          <input type="hidden" id="modal-review-id">
+
+          <div class="form-row form-row-2">
+            <div class="form-group">
+              <label for="modal-review-author" data-i18n="authorName">গ্রাহকের নাম ও শহর</label>
+              <input type="text" id="modal-review-author" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="modal-review-rating" data-i18n="rating">রেটিং (১-৫)</label>
+              <select id="modal-review-rating" class="form-control" required>
+                <option value="5">★★★★★ (৫/৫)</option>
+                <option value="4">★★★★☆ (৪/৫)</option>
+                <option value="3">★★★☆☆ (৩/৫)</option>
+                <option value="2">★★☆☆☆ (২/৫)</option>
+                <option value="1">★☆☆☆☆ (১/৫)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="modal-review-comment-bn" data-i18n="commentBn">মন্তব্য (বাংলা)</label>
+            <textarea id="modal-review-comment-bn" class="form-control" rows="3" required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="modal-review-comment-en" data-i18n="commentEn">মন্তব্য (ইংরেজি)</label>
+            <textarea id="modal-review-comment-en" class="form-control" rows="2"></textarea>
+          </div>
+
+          <label class="form-check">
+            <input type="checkbox" id="modal-review-visible" checked>
+            <span>পাবলিক ওয়েবসাইটে দৃশ্যমান হবে</span>
+          </label>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-review-modal-btn" data-i18n="cancel">বাতিল</button>
+          <button type="submit" id="save-review-submit-btn" class="btn btn-primary" data-i18n="save">সংরক্ষণ করুন</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 4. CUSTOM CONFIRMATION MODAL (Strictly NO window.confirm) -->
+  <div id="confirm-modal" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+    <div class="modal-dialog" style="max-width: 440px; text-align: center;">
+      <div class="modal-body" style="padding-top: 2rem;">
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#BA1A1A" stroke-width="2" style="margin: 0 auto 1rem;">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <h3 id="confirm-modal-title" style="font-size: 1.3rem; margin-bottom: 0.5rem;" data-i18n="confirmDelete">আপনি কি নিশ্চিত?</h3>
+        <p id="confirm-modal-desc" style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem;">
+          এই তথ্যটি মুছে ফেলা হলে তা আর উদ্ধার করা সম্ভব নাও হতে পারে।
+        </p>
+        <div style="display: flex; gap: 0.75rem; justify-content: center;">
+          <button type="button" class="btn btn-secondary" id="confirm-modal-cancel-btn" data-i18n="cancel">বাতিল</button>
+          <button type="button" class="btn btn-primary" id="confirm-modal-ok-btn" style="background-color: var(--danger); border-color: var(--danger);" data-i18n="delete">
+            মুছুন
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Slot -->
+  <div id="admin-toast-slot" class="toast-container" aria-live="polite"></div>
+
+  <!-- Entry Script ES Module -->
+  <script type="module" src="js/admin.js"></script>
 </body>
 </html>

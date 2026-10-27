@@ -1,74 +1,133 @@
-# Tulika / তুলিকা — static boutique store
+# তূলিকা বুটিক (Tulika Boutique) — Static Boutique Store
 
-Plain HTML, CSS and JavaScript modules; no build step. Supabase provides shared products, categories, reviews, orders, image storage and admin authentication.
+> **ঐতিহ্য, শিল্প ও আধুনিক ফ্যাশনের অনন্য মেলবন্ধন**  
+> *A graceful blend of heritage, craft and modern elegance.*
 
-## 1. Create Supabase project and schema
+A clean, modern, zero-build multi-file boutique web storefront and gated owner administration portal. Powered by vanilla HTML5, CSS3, ES modules, and a real Supabase backend on the free tier. No credit card, no npm, no build step, no paid services required.
 
-1. Create a project at [supabase.com](https://supabase.com).
-2. In **SQL Editor**, run `schema.sql` first, then `seed.sql`.
-3. Keep the project's **service_role** key private. It must never be copied into this site.
-4. The SQL creates the public `product-images` storage bucket. Images are public for reading; upload and deletion policies require an admin account.
+---
 
-## 2. Create the first admin
+## 1. What This Is / এই প্রজেক্টটি কী
 
-1. In Supabase, open **Authentication → Users → Add user**. Create the owner's email/password. If the project requires email confirmation, confirm that account.
-2. Copy the user's UUID from the Users list.
-3. In SQL Editor, replace the example UUID and run:
+**তূলিকা (Tulika)** হলো একটি সম্পূর্ণ স্ট্যাটিক বুটিক ওয়েবসাইট যা ছোট ব্যবসা ও কারুশিল্পীদের জন্য বিশেষভাবে তৈরি:
+- **পাবলিক স্টোরফ্রন্ট (`index.html`):** বাংলা ও ইংরেজি দ্বিভাষিক ইন্টারফেস, ক্যাটাগরি ট্যাব (অ্যাক্সেসিবল কীবোর্ড নেভিগেশন সহ), ইনস্ট্যান্ট সার্চ, প্রিমিয়াম প্রোডাক্ট কার্ড, এবং সরাসরি হোয়াটসঅ্যাপের মাধ্যমে রিয়েল-টাইম অর্ডার পাঠানোর ব্যবস্থা (`wa.me`)। কোনো অনলাইন পেমেন্ট গেটওয়ে বা অপ্রয়োজনীয় জটিল চেকআউট নেই।
+- **অ্যাডমিন প্যানেল (`admin.html`):** সুপাবেস (Supabase Auth) ইমেইল/পাসওয়ার্ড ভিত্তিক নিরাপদ লগইন, কাস্টম মডাল CRUD (পণ্য যোগ, সম্পাদনা, মুছে ফেলা), ক্লায়েন্ট-সাইড স্বয়ংক্রিয় ইমেজ রিসাইজিং (ম্যাক্স ১২০০px, ০.৮ কোয়ালিটি, EXIF মেটাডেটা ছাঁটাই), ক্যাটাগরি ব্যবস্থাপনা (পণ্য থাকলে ডিলিট লক), স্টোর সেটিংস এবং অব্যবহৃত ছবি চিহ্নিত করে মুছে ফেলার (Orphan cleanup) ব্যবস্থা।
+- **সুপাবেস ডাটাবেজ (`schema.sql` ও `seed.sql`):** আরএলএস (Row Level Security) সুরক্ষিত টেবিল, যেখানে অ্যানোনিমাস ইউজার শুধুমাত্র দৃশ্যমান পণ্য ও সেটিংস পড়তে পারে এবং শুধুমাত্র অনুমোদিত অ্যাডমিনরাই তথ্য পরিবর্তন করতে পারে।
 
-   ```sql
-   insert into public.admins(user_id)
-   values ('00000000-0000-0000-0000-000000000000');
-   ```
+---
 
-4. Admin access is allowed only after Supabase Auth sign-in **and** a matching `admins.user_id` row. Do not expose a service key to add admins from the browser.
+## 2. Run Locally / লোকাল মেশিনে চালানোর নির্দেশিকা
 
-## 3. Configure the public browser key
+ব্রাউজারে ES Modules এবং Supabase CDN সরাসরি চালানোর জন্য একটি লোকাল HTTP সার্ভার প্রয়োজন (সরাসরি `file://` কাজ করবে না):
 
-Edit `config.js` and set:
-
-```js
-export const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";
-export const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_PUBLIC_KEY";
-export const WHATSAPP_PLACEHOLDER = "919876543210"; // REPLACE THIS
-```
-
-Find the URL and **anon / publishable** key in **Project Settings → API**. The anon key is designed to be public; row-level security is what protects data. Never paste the `service_role` / secret key here. Replace the WhatsApp placeholder with the shop's country-code number, digits only.
-
-## 4. Run locally
-
-ES modules and the Supabase CDN require HTTP(S), not `file://`. From this folder, run any static server, for example:
-
-```sh
+### অপশন ক: Python বিল্ট-ইন সার্ভার
+টার্মিনাল খুলে এই ফোল্ডারে প্রবেশ করুন এবং চালান:
+```bash
 python -m http.server 8000
 ```
+অথবা পাইথন ৩ এর ক্ষেত্রে:
+```bash
+py -m http.server 8000
+```
+ব্রাউজারে খুলুন: `http://localhost:8000`
 
-Open `http://localhost:8000`. Configure `http://localhost:8000/**` in **Authentication → URL Configuration → Redirect URLs** for admin login.
+### অপশন খ: VS Code Live Server
+1. VS Code এ `Live Server` এক্সটেনশন ইনস্টল করুন।
+2. `index.html` ফাইলের উপর রাইট-ক্লিক করে **"Open with Live Server"** চাপুন।
 
-## 5. Deploy static files
+---
 
-Deploy this folder as the static site root on Netlify, Cloudflare Pages, or GitHub Pages. No build command or output directory is needed. Add the deployed admin URL (for example `https://shop.example/admin.html`) and site origin to Supabase Auth redirect URLs. Keep `config.js` with the site files.
+## 3. Supabase Setup Guide / সুপাবেস ক্লাউড কনফিগারেশন
 
-## Pages and files
+### ধাপ ১: ফ্রি প্রজেক্ট তৈরি করুন
+1. [supabase.com](https://supabase.com)-এ যান এবং সম্পূর্ণ বিনামূল্যে একটি অ্যাকাউন্ট খুলুন।
+2. **"New Project"** ক্লিক করে নাম দিন (যেমন `tulika-boutique`), একটি নিরাপদ ডাটাবেজ পাসওয়ার্ড সেট করুন এবং নিকটবর্তী রিজিয়ন (যেমন `South Asia (Mumbai)`) নির্বাচন করুন।
 
-- `index.html`, `shop.html`, `product.html`, `cart.html`, `checkout.html`, `order-done.html`, `track.html`
-- `shipping.html`, `privacy.html`, `terms.html` — owner-editable policy placeholders; replace them with reviewed policies before launch.
-- `admin.html` — Supabase Auth-gated owner dashboard.
-- `assets/app.js`, `assets/admin.js`, `assets/i18n.js`, `assets/db.js`, `assets/store.css`
-- `schema.sql`, `seed.sql`, `config.js`
+### ধাপ ২: ডাটাবেজ স্কিমা ও সিড রান করুন
+1. সুপাবেস ড্যাশবোর্ডের বাম পাশের মেনু থেকে **SQL Editor** খুলুন।
+2. এই প্রজেক্টের `schema.sql` ফাইলের সম্পূর্ণ কোড কপি করে SQL Editor-এ পেস্ট করুন এবং **"Run"** চাপুন। (এটি টেবিল, আরএলএস পলিসি, স্টোরেজ বাকেট এবং অ্যাডমিন ফাংশন তৈরি করবে)।
+3. এরপর `seed.sql` ফাইলের কোড কপি করে পেস্ট করুন এবং **"Run"** চাপুন। (এটি বাংলা ডেমো পণ্য ও ক্যাটাগরি যুক্ত করবে)।
 
-The demo product images are inline SVG-style placeholders selected by the `demo-*.svg` paths in `seed.sql`; upload real photos in the admin. Seeded address, hours, prices, shipping, descriptions and reviews are example content: verify and edit before taking orders.
+### ধাপ ৩: স্টোরেজ বাকেট ও পারমিশন যাচাই
+- `schema.sql` চালানোর সাথে সাথে `product-images` নামের পাবলিক বাকেটটি তৈরি হয়ে যাবে (সাইজ লিমিট ৫MB, ফরম্যাট: JPEG, PNG, WEBP)।
+- Storage পলিসিতে পাবলিক রিড এবং অ্যাডমিন-অনলি রাইট কনফিগার করা রয়েছে।
 
-## Orders, inventory and payment notes
+### ধাপ ৪: প্রথম অ্যাডমিন অ্যাকাউন্ট তৈরি ও অনুমোদন
+1. সুপাবেস ড্যাশবোর্ডে **Authentication** &rarr; **Users** &rarr; **"Add user"** ক্লিক করুন।
+2. মালিকের ইমেইল ও একটি শক্তিশালী পাসওয়ার্ড দিন এবং **"Create user"** চাপুন।
+3. ইউজারের তালিকা থেকে নতুন তৈরি করা অ্যাকাউন্টের **User UID** (একটি UUID, যেমন: `a1b2c3d4-e5f6-7890-abcd-ef1234567890`) কপি করুন।
+4. আবার **SQL Editor**-এ যান এবং নিচের কুয়েরিটি চালান (কপি করা UID বসিয়ে দিন):
+   ```sql
+   INSERT INTO public.admins (user_id)
+   VALUES ('আপনার-কপি-করা-USER-UUID-এখানে-বসাবেন');
+   ```
+   > **সতর্কতা:** সুপাবেসে শুধু সাইন-আপ করলেই অ্যাডমিন হওয়া যায় না। `admins` টেবিলে ইউজার আইডি না থাকলে ড্যাশবোর্ড কখনোই প্রদর্শিত হবে না।
 
-- The cart is local to the customer's browser. Opening checkout reloads visible products and sizes; placing an order calls `create_order` RPC, which locks and rechecks the stock rows, reads current prices and shipping settings, creates the order/items, and decrements inventory in one transaction. The browser does not submit prices or totals.
-- Orders are not directly readable by anonymous clients. `track_order(order number, phone)` returns a minimal response only for a matching order and validated Indian phone.
-- `create_order` has a basic per-phone order limit and a checkout honeypot. This helps reduce casual spam, but is not a full anti-bot/rate-limiting service. Add edge/server rate limiting if abuse occurs.
-- Payment choices are Cash on Delivery and UPI with owner confirmation. No online payment is collected. The Razorpay integration point is marked in checkout; add a server-side payment/order verification flow before enabling it.
-- Supabase Auth and RLS are mandatory for admin operations. Public clients use only the anon key. Review the policies and test them in a non-production project before launch.
+### ধাপ ৫: পাবলিক সাইন-আপ বন্ধ করুন
+- মালিক ছাড়া অন্য কেউ যাতে অ্যাকাউন্ট খুলতে না পারে, সেজন্য **Authentication** &rarr; **Sign Up** &rarr; **"Allow new users to sign up"** অপশনটি আনচেক (Disable) করে সেভ করুন।
 
-## Owner checklist
+### ধাপ ৬: Auth Redirect URL কনফিগারেশন
+- **Authentication** &rarr; **URL Configuration**-এ যান।
+- Site URL: `http://localhost:8000` (অথবা আপনার ডিপ্লয় করা সাইটের URL)।
+- Redirect URLs-এ যোগ করুন: `http://localhost:8000/**` এবং আপনার প্রোডাকশন ডোমেইনের লিঙ্ক (যেমন `https://your-site.netlify.app/**` বা `https://your-site.vercel.app/**`)।
 
-- Edit shop name, tagline, about, address, phone, WhatsApp number, hours, shipping fees and hero text under **Admin → Settings**.
-- Edit product stock **per size**; zero stock disables buying that size.
-- Set Supabase production Auth email/redirect settings and choose a strong owner password.
-- Review legal policies, shipping charges, inventory, privacy obligations and local tax/payment requirements before launch.
+### ধাপ ৭: ফ্রন্টএন্ডে কনফিগারেশন যুক্ত করা
+1. সুপাবেসের **Project Settings** &rarr; **API**-এ যান।
+2. **Project URL** এবং **anon / public** কি (Key) কপি করুন। (কখনোই `service_role` সিক্রেট কি কপি করবেন না!)।
+3. প্রজেক্টের `js/config.js` ফাইলটি খুলুন এবং মানগুলি বসিয়ে দিন:
+   ```javascript
+   export const SUPABASE_URL = "https://your-project-id.supabase.co";
+   export const SUPABASE_ANON_KEY = "eyJhbGciOi...";
+   export const WHATSAPP_PLACEHOLDER = "919876543210"; // আপনার দোকানের হোয়াটসঅ্যাপ নম্বর
+   ```
+
+*(নোট: যদি jsDelivr CDN লোড হতে সমস্যা করে, তবে `js/supabase.js`-এ unpkg ফলব্যাক ব্যবহার করতে পারেন: `https://unpkg.com/@supabase/supabase-js@2.45.4/dist/module/index.js`)*
+
+---
+
+## 4. Deployment Guide / সাইট ডিপ্লয়মেন্ট
+
+যেহেতু কোনো বিল্ড স্টেপ বা নোড প্যাকেজ নেই, এটি যেকোনো স্ট্যাটিক হোস্টিংয়ে সরাসরি চলে:
+
+### ক. Netlify এ ডিপ্লয় (ফ্রি)
+- **ড্র্যাগ অ্যান্ড ড্রপ:** [app.netlify.com](https://app.netlify.com)-এ লগইন করে পুরো প্রজেক্ট ফোল্ডারটি Netlify Drop বক্সে ছেড়ে দিন।
+- **অথবা GitHub কানেক্টেড:**
+  - Build command: *(ফাঁকা রাখুন)*
+  - Publish directory: `.`
+  - `netlify.toml` ফাইলে নিরাপত্তা হেডার পূর্বনির্ধারিত রয়েছে।
+
+### খ. Vercel এ ডিপ্লয় (ফ্রি)
+1. [vercel.com](https://vercel.com)-এ লগইন করে **"Add New Project"** সিলেক্ট করুন।
+2. আপনার গিট রিপোজিটরি ইমপোর্ট করুন।
+3. Framework Preset: **Other**।
+4. Root Directory: `./`
+5. Build and Output Settings: ফাঁকা রাখুন (Override করার প্রয়োজন নেই)।
+6. **"Deploy"** ক্লিক করুন। এক মিনিটের মধ্যে সাইট লাইভ হয়ে যাবে!
+
+---
+
+## 5. Free Tier — What to Watch / ফ্রি টায়ারের সীমাবদ্ধতা ও সতর্কতা
+
+1. **সুপাবেস ফ্রি সীমা (Supabase Limits):**
+   - ডাটাবেজ স্পেস: **500 MB** (হাজার হাজার প্রোডাক্ট টেক্সট ও অর্ডারের জন্য যথেষ্ট)।
+   - স্টোরেজ স্পেস: **1 GB**।
+   - প্রতি ইমেজ ক্লায়েন্ট-সাইডে স্বয়ংক্রিয়ভাবে কম্প্রেস হয়ে মাত্র ~১৫০ KB হয়। অর্থাৎ ১ জিবি স্টোরেজে প্রায় **৬,৫০০+ পণ্যের ছবি** রাখা সম্ভব!
+   - প্রতি মাসে ৫০,০০০ সক্রিয় ইউজার (50k MAU)।
+2. **৭ দিনের নিষ্ক্রিয়তা বিরতি (7-Day Idle Pause):**
+   - ফ্রি টায়ারে যদি টানা ৭ দিন ডাটাবেজে কোনো ট্র্যাফিক না থাকে, সুপাবেস প্রজেক্টটি পজ (Pause) করে দেয়।
+   - **জাগানোর উপায়:** সুপাবেস ড্যাশবোর্ডে গিয়ে প্রজেক্টের উপর **"Restore project"** চাপলেই ১ মিনিটের মধ্যে পুনরায় চালু হয়ে যায়। কোনো ডেটা হারায় না।
+3. **হোস্টিং ফ্রি সীমা (Netlify / Vercel Limits):**
+   - প্রতি মাসে 100 GB ব্যান্ডউইথ (সাধারণ বুটিকের জন্য প্রচুর)।
+4. **অটোমেটিক ব্যাকআপ না থাকা:**
+   - সুপাবেস ফ্রি টায়ারে স্বয়ংক্রিয় দৈনিক ব্যাকআপ অন্তর্ভুক্ত নেই।
+   - প্রতি মাসে একবার **Database** &rarr; **Backup** অথবা **Table Editor** থেকে CSV এক্সপোর্ট করে রাখা ভালো অভ্যাস।
+
+---
+
+## 6. Zero Paid Tools Guarantee / সম্পূর্ণ বিনামূল্যে পরিচালিত
+
+- ❌ কোনো পেইড হোস্টিং নেই (Netlify/Vercel ফ্রি)।
+- ❌ কোনো পেইড ডাটাবেজ নেই (Supabase ফ্রি টায়ার)।
+- ❌ কোনো পেইড ইমেজ CDN নেই (সুপাবেস স্টোরেজ ও ইনলাইন SVG)।
+- ❌ কোনো ক্রেডিট কার্ড বা ট্রায়াল পিরিয়ড নেই।
+- ❌ কোনো npm, webpack, vite বা জটিল ডিপেন্ডেন্সি নেই।
