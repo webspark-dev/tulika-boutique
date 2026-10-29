@@ -421,33 +421,45 @@ async function initAuth() {
   // Listen for Supabase auth state changes (e.g. magic link redirect)
   const sb = getSupabase();
   if (sb && sb.auth) {
-    sb.auth.onAuthStateChange(async (event, session) => {
+    const handleSignedIn = async (user) => {
+      if (isAuthSubmitting || isUserAdmin) return;
+
+      currentUser = user;
+      const isAdmin = await checkIsAdmin(user);
+      const lastErr = getLastAdminCheckError();
+
+      if (lastErr) {
+        console.warn('[onAuthStateChange] Admin check error:', lastErr);
+        return;
+      }
+
+      if (isAdmin && !isUserAdmin) {
+        isUserAdmin = true;
+        if (loginSection) loginSection.style.display = 'none';
+        if (unauthorizedSection) unauthorizedSection.style.display = 'none';
+        if (dashboardContainer) dashboardContainer.style.display = 'block';
+        if (logoutBtn) logoutBtn.style.display = 'inline-flex';
+        await loadAllAdminData();
+      } else if (!isAdmin) {
+        // Show unauthorized screen with SQL helper; DO NOT call signOut() automatically
+        displayUnauthorizedAccess(user);
+      }
+    };
+
+    sb.auth.onAuthStateChange((event, session) => {
       console.log('[onAuthStateChange]', event, { hasSession: Boolean(session), isSubmitting: isAuthSubmitting });
       // If user is currently in the middle of active form submission, let the form submit handler manage it
       if (isAuthSubmitting) return;
 
       if (event === 'SIGNED_IN' && session?.user) {
-        if (isUserAdmin) return; // Prevent duplicate execution if already authorized
-        currentUser = session.user;
-        const isAdmin = await checkIsAdmin(currentUser);
-        const lastErr = getLastAdminCheckError();
-
-        if (lastErr) {
-          console.warn('[onAuthStateChange] Admin check error:', lastErr);
-          return;
-        }
-
-        if (isAdmin && !isUserAdmin) {
-          isUserAdmin = true;
-          if (loginSection) loginSection.style.display = 'none';
-          if (unauthorizedSection) unauthorizedSection.style.display = 'none';
-          if (dashboardContainer) dashboardContainer.style.display = 'block';
-          if (logoutBtn) logoutBtn.style.display = 'inline-flex';
-          await loadAllAdminData();
-        } else if (!isAdmin) {
-          // Show unauthorized screen with SQL helper; DO NOT call signOut() automatically
-          displayUnauthorizedAccess(session.user);
-        }
+        const user = session.user;
+        // Supabase auth callbacks run under an internal lock; defer requests that
+        // need the session until the callback has returned.
+        setTimeout(() => {
+          handleSignedIn(user).catch((error) => {
+            console.error('[onAuthStateChange] Failed to process sign-in:', error);
+          });
+        }, 0);
       } else if (event === 'SIGNED_OUT') {
         currentUser = null;
         isUserAdmin = false;
@@ -2918,4 +2930,3 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await initAuth();
 });
-
