@@ -431,7 +431,7 @@
       <section id="panel-storage" class="admin-card" style="display: none;">
         <h3 style="font-size: 1.3rem; margin-bottom: 0.5rem;" data-i18n="cleanOrphanImages">অব্যবহৃত ছবি খুঁজুন ও মুছুন (Clean Orphans)</h3>
         <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem;">
-          Supabase Storage এর <code>product-images</code> বাকেটে থাকা যেসকল ছবি কোনো পণ্যের সাথে যুক্ত নেই, সেগুলি স্ক্যান করে স্থায়ীভাবে মুছে ফেলা যায় যাতে ফ্রি স্টোরেজ সীমার সাশ্রয় হয়।
+          Supabase Storage-এর <code>product-images</code> বাকেটের যেসব ছবি কোনো পণ্য, ওয়েবসাইট লোগো বা ব্যানার সেটিংসে ব্যবহৃত হচ্ছে না, সেগুলো স্ক্যান করে মুছে ফেলা যায়।
         </p>
 
         <button id="scan-orphans-btn" class="btn btn-secondary">
@@ -490,6 +490,10 @@
                   <label for="custom-logo-file" data-i18n="btnUploadLogo">নতুন লোগো আপলোড করুন</label>
                   <input type="file" id="custom-logo-file" class="form-control" accept="image/png,image/jpeg,image/webp,image/svg+xml">
                   <small style="color: var(--text-muted); font-size: 0.8rem;">PNG, JPG, SVG বা WebP (সর্বোচ্চ 2MB)</small>
+                  <div id="logo-upload-status" class="custom-upload-status" role="status" aria-live="polite" hidden>
+                    <progress aria-label="Logo upload in progress"></progress>
+                    <span></span>
+                  </div>
                 </div>
                 
                 <div class="form-group">
@@ -695,6 +699,10 @@
                   <label for="custom-hero-bg-file" data-i18n="heroBgUpload">হিরো ব্যাকগ্রাউন্ড ইমেজ</label>
                   <input type="file" id="custom-hero-bg-file" class="form-control" accept="image/png,image/jpeg,image/webp">
                   <small style="color: var(--text-muted); font-size: 0.8rem;">JPG বা WebP হাই-রেজোলিউশন ছবি (সর্বোচ্চ 3MB)</small>
+                  <div id="hero-upload-status" class="custom-upload-status" role="status" aria-live="polite" hidden>
+                    <progress aria-label="Banner upload in progress"></progress>
+                    <span></span>
+                  </div>
                 </div>
 
                 <div class="form-group">
@@ -887,6 +895,16 @@
             </div>
             <div class="form-row form-row-2">
               <div class="form-group">
+                <label for="custom-sec-footer-about-bn">ফুটারের বিবরণ (বাংলা)</label>
+                <textarea id="custom-sec-footer-about-bn" class="form-control" rows="2"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="custom-sec-footer-about-en">Footer description (English)</label>
+                <textarea id="custom-sec-footer-about-en" class="form-control" rows="2"></textarea>
+              </div>
+            </div>
+            <div class="form-row form-row-2">
+              <div class="form-group">
                 <label for="custom-sec-footer-fb" data-i18n="socialFacebook">ফেসবুক পেজ লিঙ্ক (Facebook URL)</label>
                 <input type="url" id="custom-sec-footer-fb" class="form-control" placeholder="https://facebook.com/tulikaboutique">
               </div>
@@ -917,15 +935,15 @@
               <div class="form-group">
                 <label for="custom-color-secondary" data-i18n="secondaryColor">দ্বিতীয় পরিপূরক কালার</label>
                 <div class="custom-color-field">
-                  <input type="color" id="custom-color-secondary-picker" value="#D48C17">
-                  <input type="text" id="custom-color-secondary" class="form-control" value="#D48C17">
+                  <input type="color" id="custom-color-secondary-picker" value="#1E6B58">
+                  <input type="text" id="custom-color-secondary" class="form-control" value="#1E6B58">
                 </div>
               </div>
               <div class="form-group">
                 <label for="custom-color-accent" data-i18n="accentColor">অ্যাকসেন্ট কালার</label>
                 <div class="custom-color-field">
-                  <input type="color" id="custom-color-accent-picker" value="#1E6B58">
-                  <input type="text" id="custom-color-accent" class="form-control" value="#1E6B58">
+                  <input type="color" id="custom-color-accent-picker" value="#D48C17">
+                  <input type="text" id="custom-color-accent" class="form-control" value="#D48C17">
                 </div>
               </div>
             </div>
@@ -1255,4 +1273,3 @@
   <script type="module" src="js/admin.js"></script>
 </body>
 </html>
-

@@ -4,7 +4,7 @@
 // Real Supabase backend with resilient mock fallback for placeholder setup
 // ==============================================================================
 
-import { getSupabase, isConfigured } from './supabase.js';
+import { getSupabase } from './supabase.js';
 import { WHATSAPP_PLACEHOLDER, SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { getCurrentLang, t } from './i18n.js';
 
@@ -210,10 +210,10 @@ export const DEFAULT_CUSTOMIZATION = {
       title_en: 'Contact & Visit Us',
       sub_bn: 'আমাদের শপে সরাসরি আসুন অথবা যেকোনো প্রয়োজনে ফোন/মেসেজ করুন',
       sub_en: 'Visit our boutique or reach out via phone/message',
-      phone: '+91 98765 43210',
-      email: 'contact@tulikaboutique.com',
-      address_bn: '১২, শ্যামাপ্রসাদ মুখার্জি রোড, ভবানীপুর, কলকাতা ৭০০০২৫',
-      address_en: '12, Shyama Prasad Mukherjee Road, Bhowanipore, Kolkata 700025'
+      phone: '',
+      email: '',
+      address_bn: '',
+      address_en: ''
     },
     footer: {
       about_bn: 'বাংলার সমৃদ্ধ ঐতিহ্য, খাঁটি বয়ন ও আধুনিক ফ্যাশনের অনন্য মেলবন্ধন।',
@@ -849,7 +849,7 @@ export async function deleteProduct(product) {
 // ==============================================================================
 // IMAGE UPLOAD & RESIZE (Client-side Canvas: max 1200px, JPEG 0.8, EXIF stripped)
 // ==============================================================================
-export async function processAndUploadImage(file) {
+export async function processAndUploadImage(file, purpose = 'prod') {
   const isBn = getCurrentLang() === 'bn';
   if (!file) throw new Error(isBn ? 'কোনো ফাইল নির্বাচন করা হয়নি' : 'No file selected');
 
@@ -954,7 +954,8 @@ export async function processAndUploadImage(file) {
     const safeName = file.name
       .replace(/[^a-zA-Z0-9._-]/g, '')
       .replace(/\.[^/.]+$/, '');
-    const fileName = `prod_${Date.now()}_${safeName || 'photo'}.${ext}`;
+    const safePurpose = ['prod', 'site_logo', 'site_hero'].includes(purpose) ? purpose : 'prod';
+    const fileName = `${safePurpose}_${Date.now()}_${safeName || 'photo'}.${ext}`;
 
     const { data, error } = await sb.storage
       .from('product-images')
@@ -1050,12 +1051,20 @@ export async function cleanOrphanImages() {
       return { scanned: 0, removed: 0, orphans: [] };
     }
 
-    // 2. Fetch all image URLs from products
+    // Keep uploaded website assets while their settings still reference them.
     const { data: products, error: prodErr } = await sb
       .from('products')
       .select('image_url');
 
     if (prodErr) throw prodErr;
+
+    const { data: settings, error: settingsErr } = await sb
+      .from('settings')
+      .select('customization')
+      .eq('id', 1)
+      .single();
+
+    if (settingsErr) throw settingsErr;
 
     const referencedPaths = new Set();
     products.forEach((p) => {
@@ -1064,6 +1073,11 @@ export async function cleanOrphanImages() {
         if (path) referencedPaths.add(path);
       }
     });
+    const customization = settings?.customization || {};
+    for (const assetUrl of [customization.logo?.url, customization.hero?.bg_image]) {
+      const path = typeof assetUrl === 'string' ? extractStoragePath(assetUrl) : null;
+      if (path) referencedPaths.add(path);
+    }
 
     // 3. Find files not referenced
     const orphanPaths = files
@@ -1577,4 +1591,3 @@ export async function checkIsAdmin(user, timeoutMs = 20000) {
     return false;
   }
 }
-

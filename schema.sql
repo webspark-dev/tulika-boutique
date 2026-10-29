@@ -170,37 +170,68 @@ CREATE POLICY "Public can view categories"
   USING (true);
 
 DROP POLICY IF EXISTS "Admins can manage categories" ON public.categories;
-CREATE POLICY "Admins can manage categories"
-  ON public.categories FOR ALL
-  TO authenticated
-  USING (public.is_admin())
+DROP POLICY IF EXISTS "Admins can insert categories" ON public.categories;
+DROP POLICY IF EXISTS "Admins can update categories" ON public.categories;
+DROP POLICY IF EXISTS "Admins can delete categories" ON public.categories;
+CREATE POLICY "Admins can insert categories"
+  ON public.categories FOR INSERT TO authenticated
   WITH CHECK (public.is_admin());
+CREATE POLICY "Admins can update categories"
+  ON public.categories FOR UPDATE TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admins can delete categories"
+  ON public.categories FOR DELETE TO authenticated
+  USING (public.is_admin());
 
 -- Products policies
 DROP POLICY IF EXISTS "Public can view visible products" ON public.products;
+DROP POLICY IF EXISTS "Public can view visible products only" ON public.products;
 CREATE POLICY "Public can view visible products"
-  ON public.products FOR SELECT
-  USING (is_visible = true OR public.is_admin());
+  ON public.products FOR SELECT TO anon, authenticated
+  USING (is_visible = true);
 
 DROP POLICY IF EXISTS "Admins can manage products" ON public.products;
-CREATE POLICY "Admins can manage products"
-  ON public.products FOR ALL
-  TO authenticated
-  USING (public.is_admin())
+DROP POLICY IF EXISTS "Admins can view all products" ON public.products;
+DROP POLICY IF EXISTS "Admins can insert products" ON public.products;
+DROP POLICY IF EXISTS "Admins can update products" ON public.products;
+DROP POLICY IF EXISTS "Admins can delete products" ON public.products;
+CREATE POLICY "Admins can view all products"
+  ON public.products FOR SELECT TO authenticated
+  USING (public.is_admin());
+CREATE POLICY "Admins can insert products"
+  ON public.products FOR INSERT TO authenticated
   WITH CHECK (public.is_admin());
+CREATE POLICY "Admins can update products"
+  ON public.products FOR UPDATE TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admins can delete products"
+  ON public.products FOR DELETE TO authenticated
+  USING (public.is_admin());
 
 -- Reviews policies
 DROP POLICY IF EXISTS "Public can view visible reviews" ON public.reviews;
+DROP POLICY IF EXISTS "Public can view visible reviews only" ON public.reviews;
 CREATE POLICY "Public can view visible reviews"
-  ON public.reviews FOR SELECT
-  USING (is_visible = true OR public.is_admin());
+  ON public.reviews FOR SELECT TO anon, authenticated
+  USING (is_visible = true);
 
 DROP POLICY IF EXISTS "Admins can manage reviews" ON public.reviews;
-CREATE POLICY "Admins can manage reviews"
-  ON public.reviews FOR ALL
-  TO authenticated
-  USING (public.is_admin())
+DROP POLICY IF EXISTS "Admins can view all reviews" ON public.reviews;
+DROP POLICY IF EXISTS "Admins can insert reviews" ON public.reviews;
+DROP POLICY IF EXISTS "Admins can update reviews" ON public.reviews;
+DROP POLICY IF EXISTS "Admins can delete reviews" ON public.reviews;
+CREATE POLICY "Admins can view all reviews"
+  ON public.reviews FOR SELECT TO authenticated
+  USING (public.is_admin());
+CREATE POLICY "Admins can insert reviews"
+  ON public.reviews FOR INSERT TO authenticated
   WITH CHECK (public.is_admin());
+CREATE POLICY "Admins can update reviews"
+  ON public.reviews FOR UPDATE TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admins can delete reviews"
+  ON public.reviews FOR DELETE TO authenticated
+  USING (public.is_admin());
 
 -- Settings policies
 DROP POLICY IF EXISTS "Public can view settings" ON public.settings;
@@ -209,11 +240,18 @@ CREATE POLICY "Public can view settings"
   USING (true);
 
 DROP POLICY IF EXISTS "Admins can manage settings" ON public.settings;
-CREATE POLICY "Admins can manage settings"
-  ON public.settings FOR ALL
-  TO authenticated
-  USING (public.is_admin())
+DROP POLICY IF EXISTS "Admins can insert settings" ON public.settings;
+DROP POLICY IF EXISTS "Admins can update settings" ON public.settings;
+DROP POLICY IF EXISTS "Admins can delete settings" ON public.settings;
+CREATE POLICY "Admins can insert settings"
+  ON public.settings FOR INSERT TO authenticated
   WITH CHECK (public.is_admin());
+CREATE POLICY "Admins can update settings"
+  ON public.settings FOR UPDATE TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admins can delete settings"
+  ON public.settings FOR DELETE TO authenticated
+  USING (public.is_admin());
 
 -- Admins table policies (NO anonymous SELECT allowed!)
 -- Non-recursive policy architecture:
@@ -287,4 +325,3 @@ CREATE POLICY "Admins can delete product images"
   ON storage.objects FOR DELETE
   TO authenticated
   USING (bucket_id = 'product-images' AND public.is_admin());
-

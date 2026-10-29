@@ -1,11 +1,9 @@
 -- ==============================================================================
 -- Tulika Boutique / তূলিকা বুটিক
 -- File: migration_reviews_moderation.sql
--- Description: Minimal, Non-Destructive Customer Review Submission Policy
+-- Description: Customer review submission and role-separated read/moderation policies
 --
--- EXISTING POLICIES PRESERVED (NOT DROPPED OR RECREATED):
--- 1. "Admins can manage reviews" (ALL, authenticated, USING is_admin(), WITH CHECK is_admin())
--- 2. "Public can view visible reviews" (SELECT, public, USING is_visible = true OR is_admin())
+-- Public reads do not call is_admin(); only authenticated admin policies do.
 -- ==============================================================================
 
 -- ------------------------------------------------------------------------------
@@ -19,7 +17,7 @@ FROM information_schema.columns
 WHERE table_schema = 'public' AND table_name = 'reviews'
 ORDER BY ordinal_position;
 
--- 1B. Confirm existing policies (should show your 2 existing policies)
+-- 1B. Inspect existing policies before applying the migration
 SELECT policyname, cmd, roles, qual, with_check 
 FROM pg_policies 
 WHERE schemaname = 'public' AND tablename = 'reviews';
@@ -49,11 +47,39 @@ ALTER TABLE public.reviews
 -- (Prerequisite for Row-Level Security evaluation on INSERT)
 GRANT INSERT ON public.reviews TO anon, authenticated;
 
--- 2C. Ensure EXECUTE permission on public.is_admin() for anon & authenticated
--- (Guarantees public SELECT policy "is_visible = true OR is_admin()" never encounters permission issues)
-GRANT EXECUTE ON FUNCTION public.is_admin() TO anon, authenticated;
+-- 2C. Keep is_admin() unavailable to anonymous/public callers. Admin auth remains
+-- available to signed-in users and is used only by authenticated admin policies.
+REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_admin() FROM anon;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
 
--- 2D. Create the single missing INSERT policy for public customers
+-- 2D. Replace the old public-read/admin-ALL policies. The old public policy
+-- called is_admin() for anonymous requests and could fail with permission denied.
+DROP POLICY IF EXISTS "Public can view visible reviews" ON public.reviews;
+DROP POLICY IF EXISTS "Public can view visible reviews only" ON public.reviews;
+DROP POLICY IF EXISTS "Admins can manage reviews" ON public.reviews;
+DROP POLICY IF EXISTS "Admins can view all reviews" ON public.reviews;
+DROP POLICY IF EXISTS "Admins can insert reviews" ON public.reviews;
+DROP POLICY IF EXISTS "Admins can update reviews" ON public.reviews;
+DROP POLICY IF EXISTS "Admins can delete reviews" ON public.reviews;
+
+CREATE POLICY "Public can view visible reviews"
+  ON public.reviews FOR SELECT TO anon, authenticated
+  USING (is_visible = true);
+CREATE POLICY "Admins can view all reviews"
+  ON public.reviews FOR SELECT TO authenticated
+  USING (public.is_admin());
+CREATE POLICY "Admins can insert reviews"
+  ON public.reviews FOR INSERT TO authenticated
+  WITH CHECK (public.is_admin());
+CREATE POLICY "Admins can update reviews"
+  ON public.reviews FOR UPDATE TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admins can delete reviews"
+  ON public.reviews FOR DELETE TO authenticated
+  USING (public.is_admin());
+
+-- 2E. Create the customer INSERT policy for public customers
 -- Strict constraints:
 -- • is_visible must be explicitly FALSE (customers cannot publish reviews)
 -- • rating must be between 1 and 5
@@ -73,13 +99,11 @@ CREATE POLICY "Public can submit pending reviews"
 
 -- ------------------------------------------------------------------------------
 -- STEP 3: POST-MIGRATION VERIFICATION (READ-ONLY)
--- Run this to confirm the 3 final active policies and permissions:
--- 1. "Admins can manage reviews"         (ALL, authenticated) -> Preserved unchanged
--- 2. "Public can view visible reviews"   (SELECT, public)     -> Preserved unchanged
--- 3. "Public can submit pending reviews" (INSERT, anon/auth)  -> Newly added
+-- The reviews table should have public-visible SELECT, admin SELECT and writes,
+-- plus public pending-review INSERT policies.
 -- ------------------------------------------------------------------------------
 
--- 3A. Verify all 3 policies on public.reviews
+-- 3A. Verify all policies on public.reviews
 SELECT 
   policyname, 
   cmd AS command, 
@@ -95,3 +119,8 @@ SELECT grantee, privilege_type
 FROM information_schema.role_table_grants 
 WHERE table_schema = 'public' AND table_name = 'reviews' AND privilege_type = 'INSERT'
 ORDER BY grantee;
+
+-- 3C. anon must not be able to execute the admin authorization helper.
+SELECT
+  has_function_privilege('anon', 'public.is_admin()', 'EXECUTE') AS anon_can_execute_is_admin,
+  has_function_privilege('authenticated', 'public.is_admin()', 'EXECUTE') AS authenticated_can_execute_is_admin;

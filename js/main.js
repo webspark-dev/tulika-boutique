@@ -38,6 +38,35 @@ let unsubscribeStoreUpdates = null;
 let realtimeRefreshTimer = null;
 let realtimeFallbackTimer = null;
 
+function safeWebUrl(value, { allowRelative = true, httpsOnly = false } = {}) {
+  if (typeof value !== 'string' || !value.trim()) return '';
+  const raw = value.trim();
+  if (allowRelative && raw.startsWith('#')) return raw;
+  if (!allowRelative && !/^https:\/\//i.test(raw)) return '';
+  try {
+    const url = new URL(raw, window.location.href);
+    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && url.origin === window.location.origin)) return '';
+    if (httpsOnly && url.protocol !== 'https:') return '';
+    if (url.username || url.password) return '';
+    return url.href;
+  } catch {
+    return '';
+  }
+}
+
+function safeImageUrl(value, allowLegacyData = false) {
+  if (typeof value !== 'string' || !value.trim()) return '';
+  const raw = value.trim();
+  if (allowLegacyData && /^data:image\/(?:png|jpeg|webp|svg\+xml);base64,[A-Za-z0-9+/=]+$/i.test(raw)) {
+    return raw;
+  }
+  return safeWebUrl(raw);
+}
+
+function setThemeColor(root, property, value) {
+  if (/^#[0-9A-Fa-f]{6}$/.test(value || '')) root.style.setProperty(property, value);
+}
+
 /**
  * Initialize IntersectionObserver for smooth scroll reveals
  * with automatic fallback and reduced-motion support
@@ -293,6 +322,9 @@ function updateSettingsDisplay() {
 
   const brandEl = document.getElementById('store-brand-name');
   if (brandEl) brandEl.textContent = brandName || 'তূলিকা';
+  document.title = `${brandName || 'তূলিকা'} — ${isBn ? 'বুটিক ও খাঁটি হস্তশিল্প' : 'Heritage Boutique'}`;
+  const ogTitle = document.querySelector('meta[property="og:title"]');
+  if (ogTitle) ogTitle.content = document.title;
 
   const brandTaglineEl = document.getElementById('store-brand-tagline');
   if (brandTaglineEl) brandTaglineEl.textContent = isBn ? 'বুটিক ও হস্তশিল্প' : 'Heritage Boutique';
@@ -376,13 +408,20 @@ function applyCustomizationToDOM(customization, lang = getCurrentLang()) {
     const defaultSvg = document.getElementById('store-default-logo-svg');
     const brandLink = document.getElementById('store-brand-link');
 
-    if (logo.url && logoImg) {
-      logoImg.src = logo.url;
+    const logoUrl = safeImageUrl(logo.url, true);
+    if (logoUrl && logoImg) {
+      logoImg.src = logoUrl;
       logoImg.alt = logo.alt || (isBn ? 'তূলিকা লোগো' : 'Tulika Logo');
-      logoImg.style.width = logo.width ? `${logo.width}px` : 'auto';
-      logoImg.style.maxHeight = logo.height ? `${logo.height}px` : '48px';
+      const logoWidth = Number(logo.width);
+      const logoHeight = Number(logo.height);
+      logoImg.style.width = Number.isFinite(logoWidth) && logoWidth >= 40 && logoWidth <= 320 ? `${logoWidth}px` : 'auto';
+      logoImg.style.maxHeight = Number.isFinite(logoHeight) && logoHeight >= 20 && logoHeight <= 160 ? `${logoHeight}px` : '48px';
       logoImg.style.display = 'block';
       if (defaultSvg) defaultSvg.style.display = 'none';
+      logoImg.onerror = () => {
+        logoImg.style.display = 'none';
+        if (defaultSvg) defaultSvg.style.display = 'block';
+      };
     } else {
       if (logoImg) logoImg.style.display = 'none';
       if (defaultSvg) defaultSvg.style.display = 'block';
@@ -396,20 +435,31 @@ function applyCustomizationToDOM(customization, lang = getCurrentLang()) {
 
     const brandName = isBn ? (logo.brand_name_bn || appSettings?.store_name_bn) : (logo.brand_name_en || appSettings?.store_name_en);
     const brandNameEl = document.getElementById('store-brand-name');
-    if (brandNameEl && brandName) brandNameEl.textContent = brandName;
+    if (brandNameEl && brandName) {
+      brandNameEl.textContent = brandName;
+      document.title = `${brandName} — ${isBn ? 'বুটিক ও খাঁটি হস্তশিল্প' : 'Heritage Boutique'}`;
+      const ogTitle = document.querySelector('meta[property="og:title"]');
+      if (ogTitle) ogTitle.content = document.title;
+      const brandLink = document.getElementById('store-brand-link');
+      if (brandLink) brandLink.setAttribute('aria-label', `${brandName} home`);
+    }
   }
 
   // 2. Header & Navigation Links
   const header = customization.header;
   const siteHeader = document.querySelector('.site-header');
   if (header && siteHeader) {
-    if (header.bg_color && !isDark) siteHeader.style.backgroundColor = header.bg_color;
+    if (header.bg_color && !isDark && /^#[0-9A-Fa-f]{6}$/.test(header.bg_color)) siteHeader.style.backgroundColor = header.bg_color;
     else if (!isDark) siteHeader.style.backgroundColor = '';
 
-    if (header.height) root.style.setProperty('--header-height', `${header.height}px`);
-    if (header.logo_spacing) {
+    const headerHeight = Number(header.height);
+    if (Number.isFinite(headerHeight) && headerHeight >= 50 && headerHeight <= 110) {
+      root.style.setProperty('--header-height', `${headerHeight}px`);
+    }
+    const logoSpacing = Number(header.logo_spacing);
+    if (Number.isFinite(logoSpacing) && logoSpacing >= 0 && logoSpacing <= 48) {
       const brandText = document.getElementById('store-brand-text');
-      if (brandText) brandText.style.marginLeft = `${header.logo_spacing}px`;
+      if (brandText) brandText.style.marginLeft = `${logoSpacing}px`;
     }
 
     const mobileMenuBtn = document.getElementById('mobile-menu-btn');
@@ -428,22 +478,38 @@ function applyCustomizationToDOM(customization, lang = getCurrentLang()) {
       .sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
 
     if (desktopNav) {
-      desktopNav.innerHTML = visibleItems
-        .map((item) => {
-          const label = isBn ? item.label_bn : item.label_en;
-          const style = [];
-          if (header?.text_color && !isDark) style.push(`color: ${header.text_color}`);
-          if (header?.nav_font_size) style.push(`font-size: ${header.nav_font_size}px`);
-          return `<a href="${item.target}" class="nav-link" ${style.length ? `style="${style.join(';')}"` : ''}>${label}</a>`;
-        })
-        .join('');
-      if (header?.nav_spacing) desktopNav.style.gap = `${header.nav_spacing}px`;
+      desktopNav.replaceChildren(...visibleItems.map((item) => {
+        const link = document.createElement('a');
+        link.className = 'nav-link';
+        link.href = safeWebUrl(item.target) || '#';
+        link.textContent = isBn ? (item.label_bn || '') : (item.label_en || '');
+        if (header?.text_color && !isDark && /^#[0-9A-Fa-f]{6}$/.test(header.text_color)) {
+          link.style.color = header.text_color;
+        }
+        if (Number.isFinite(Number(header?.nav_font_size)) && Number(header.nav_font_size) >= 10 && Number(header.nav_font_size) <= 32) {
+          link.style.fontSize = `${Number(header.nav_font_size)}px`;
+        }
+        return link;
+      }));
+      const navSpacing = Number(header?.nav_spacing);
+      if (Number.isFinite(navSpacing) && navSpacing >= 0 && navSpacing <= 64) {
+        desktopNav.style.gap = `${navSpacing}px`;
+      }
     }
 
     if (mobileNav) {
-      mobileNav.innerHTML = visibleItems
-        .map((item) => `<a href="${item.target}" class="mobile-nav-link">${isBn ? item.label_bn : item.label_en}</a>`)
-        .join('') + `<a href="admin.html" class="mobile-nav-link admin-link">${isBn ? 'অ্যাডমিন লগইন' : 'Admin Login'}</a>`;
+      const links = visibleItems.map((item) => {
+        const link = document.createElement('a');
+        link.className = 'mobile-nav-link';
+        link.href = safeWebUrl(item.target) || '#';
+        link.textContent = isBn ? (item.label_bn || '') : (item.label_en || '');
+        return link;
+      });
+      const adminLink = document.createElement('a');
+      adminLink.href = 'admin.html';
+      adminLink.className = 'mobile-nav-link admin-link';
+      adminLink.textContent = isBn ? 'অ্যাডমিন লগইন' : 'Admin Login';
+      mobileNav.replaceChildren(...links, adminLink);
     }
   }
 
@@ -467,27 +533,34 @@ function applyCustomizationToDOM(customization, lang = getCurrentLang()) {
     if (btnEl) {
       const bText = isBn ? hero.btn_label_bn : hero.btn_label_en;
       if (bText) btnEl.textContent = bText;
-      if (hero.btn_target) btnEl.href = hero.btn_target;
+      btnEl.href = safeWebUrl(hero.btn_target) || '#products';
     }
 
-    if (hero.height) heroSec.style.minHeight = hero.height;
+    if (/^(?:\d{1,3}vh|\d{1,4}px|\d{1,3}rem)$/.test(hero.height || '')) heroSec.style.minHeight = hero.height;
 
     const heroContent = heroSec.querySelector('.hero-content');
     if (heroContent && hero.text_alignment) {
-      heroContent.style.textAlign = hero.text_alignment;
+      heroContent.style.textAlign = ['left', 'center', 'right'].includes(hero.text_alignment)
+        ? hero.text_alignment
+        : 'center';
     }
 
-    if (hero.bg_image) {
-      heroSec.style.backgroundImage = `url("${hero.bg_image}")`;
-      heroSec.style.backgroundPosition = hero.bg_position || 'center center';
+    const heroImageUrl = safeImageUrl(hero.bg_image);
+    if (heroImageUrl) {
+      heroSec.style.backgroundImage = `url("${heroImageUrl}")`;
+      heroSec.style.backgroundPosition = [
+        'center center', 'top center', 'bottom center', 'left center', 'right center'
+      ].includes(hero.bg_position) ? hero.bg_position : 'center center';
       heroSec.style.backgroundSize = 'cover';
     } else {
       heroSec.style.backgroundImage = '';
     }
 
     if (!isDark) {
-      if (hero.bg_color) heroSec.style.backgroundColor = hero.bg_color;
-      if (hero.text_color && heroContent) heroContent.style.color = hero.text_color;
+      heroSec.style.backgroundColor = /^#[0-9A-Fa-f]{6}$/.test(hero.bg_color || '') ? hero.bg_color : '';
+      if (heroContent) {
+        heroContent.style.color = /^#[0-9A-Fa-f]{6}$/.test(hero.text_color || '') ? hero.text_color : '';
+      }
     } else {
       heroSec.style.backgroundColor = '';
       if (heroContent) heroContent.style.color = '';
@@ -532,11 +605,23 @@ function applyCustomizationToDOM(customization, lang = getCurrentLang()) {
       const cTitle = document.getElementById('contact-title');
       const cAddr = document.getElementById('contact-address-text');
       if (cTitle) cTitle.textContent = isBn ? secs.contact.title_bn : secs.contact.title_en;
-      if (cAddr) cAddr.textContent = isBn ? secs.contact.address_bn : secs.contact.address_en;
+      if (cAddr) {
+        cAddr.textContent = (isBn ? appSettings?.address_bn : appSettings?.address_en) || '';
+      }
       const cPhone = document.getElementById('contact-phone-link');
-      if (cPhone && secs.contact.phone) {
-        cPhone.textContent = secs.contact.phone;
-        cPhone.href = `tel:${secs.contact.phone.replace(/\s+/g, '')}`;
+      const phone = secs.contact.phone || appSettings?.phone || '';
+      if (cPhone && phone) {
+        cPhone.textContent = phone;
+        cPhone.href = `tel:${phone.replace(/[^\d+]/g, '')}`;
+      }
+      const email = String(secs.contact.email || '').trim();
+      const emailItem = document.getElementById('contact-email-item');
+      const emailLink = document.getElementById('contact-email-link');
+      const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      if (emailItem) emailItem.hidden = !validEmail;
+      if (emailLink && validEmail) {
+        emailLink.textContent = email;
+        emailLink.href = `mailto:${email}`;
       }
     }
 
@@ -549,16 +634,31 @@ function applyCustomizationToDOM(customization, lang = getCurrentLang()) {
         if (copyPattern) copyEl.textContent = copyPattern.replace('{year}', new Date().getFullYear());
       }
 
+      const aboutEl = document.getElementById('footer-about-text');
+      const aboutText = isBn ? secs.footer.about_bn : secs.footer.about_en;
+      if (aboutEl) {
+        aboutEl.textContent = aboutText || '';
+        aboutEl.hidden = !aboutText;
+      }
+
       const socialContainer = document.getElementById('footer-social-links');
       if (socialContainer) {
-        let socialHtml = '';
-        if (secs.footer.facebook_url) {
-          socialHtml += `<a href="${secs.footer.facebook_url}" target="_blank" rel="noopener" class="footer-link" aria-label="Facebook">Facebook</a>`;
-        }
-        if (secs.footer.instagram_url) {
-          socialHtml += `<a href="${secs.footer.instagram_url}" target="_blank" rel="noopener" class="footer-link" aria-label="Instagram">Instagram</a>`;
-        }
-        socialContainer.innerHTML = socialHtml;
+        const links = [
+          ['Facebook', secs.footer.facebook_url],
+          ['Instagram', secs.footer.instagram_url]
+        ].flatMap(([label, value]) => {
+          const href = safeWebUrl(value, { allowRelative: false, httpsOnly: true });
+          if (!href) return [];
+          const link = document.createElement('a');
+          link.href = href;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.className = 'footer-link';
+          link.setAttribute('aria-label', label);
+          link.textContent = label;
+          return [link];
+        });
+        socialContainer.replaceChildren(...links);
       }
     }
   }
@@ -579,12 +679,12 @@ function applyCustomizationToDOM(customization, lang = getCurrentLang()) {
     if (secSpacing !== undefined && secSpacing !== null) root.style.setProperty('--section-spacing', `${secSpacing}px`);
 
     if (!isDark) {
-      if (design.primary_color) root.style.setProperty('--primary', design.primary_color);
-      if (design.secondary_color) root.style.setProperty('--secondary', design.secondary_color);
-      if (design.accent_color) root.style.setProperty('--accent', design.accent_color);
+      setThemeColor(root, '--primary', design.primary_color);
+      setThemeColor(root, '--secondary', design.secondary_color);
+      setThemeColor(root, '--accent', design.accent_color);
       const pageBg = design.page_bg_color || design.bg_color;
-      if (pageBg) root.style.setProperty('--bg', pageBg);
-      if (design.text_color) root.style.setProperty('--text-main', design.text_color);
+      setThemeColor(root, '--bg', pageBg);
+      setThemeColor(root, '--text-main', design.text_color);
     } else {
       root.style.removeProperty('--primary');
       root.style.removeProperty('--secondary');
@@ -1411,4 +1511,3 @@ document.addEventListener('DOMContentLoaded', async () => {
   initScrollReveal();
   window.__STORE_READY__ = true;
 });
-

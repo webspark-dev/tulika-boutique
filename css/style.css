@@ -231,7 +231,7 @@ h1, h2, h3, h4, .font-display {
   line-height: 1.2;
 }
 
-.btn:active, .floating-wa:active, .btn-ask:active {
+.btn:active, .floating-wa:active {
   transform: scale(0.96) !important;
 }
 
@@ -1144,10 +1144,6 @@ h1, h2, h3, h4, .font-display {
     font-size: 0.75rem;
     gap: 0.25rem;
   }
-
-  .card-actions .btn-ask {
-    display: none; /* Focus mobile shoppers on primary order CTA */
-  }
 }
 
 .card-footer {
@@ -1196,22 +1192,6 @@ h1, h2, h3, h4, .font-display {
   flex: 1;
   font-size: 0.85rem;
   padding: 0.6rem 0.5rem;
-}
-
-.btn-ask {
-  background: var(--bg-subtle);
-  color: var(--text-main);
-  border: 1px solid var(--border);
-  padding: 0.6rem;
-  flex: 0 0 auto !important;
-}
-
-@media (hover: hover) {
-  .btn-ask:hover {
-    background: var(--surface-alt);
-    border-color: var(--accent);
-    color: var(--primary);
-  }
 }
 
 /* Skeletons */
@@ -1659,6 +1639,36 @@ h1, h2, h3, h4, .font-display {
 .footer-copy {
   font-size: 0.875rem;
   color: var(--text-muted);
+}
+
+.footer-description {
+  max-width: 32rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.footer-description[hidden],
+.contact-item[hidden] {
+  display: none !important;
+}
+
+.custom-upload-status {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.custom-upload-status[hidden] {
+  display: none;
+}
+
+.custom-upload-status progress {
+  width: 7rem;
+  height: 0.6rem;
+  accent-color: var(--primary);
 }
 
 .footer-admin-link {
@@ -2132,33 +2142,6 @@ select option {
   box-shadow: var(--shadow-sm);
 }
 
-.custom-card-header {
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 0.75rem;
-  margin-bottom: 1.25rem;
-}
-
-.custom-card-header h3 {
-  font-size: 1.15rem;
-  color: var(--primary);
-  margin-bottom: 0.25rem;
-}
-
-[data-theme="dark"] .custom-card-header h3 {
-  color: var(--accent-light);
-}
-
-.custom-card-header p {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
-
-.custom-form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1.25rem;
-}
-
 .custom-color-field {
   display: flex;
   align-items: center;
@@ -2179,30 +2162,6 @@ select option {
 .custom-color-field input[type="text"] {
   font-family: monospace;
   text-transform: uppercase;
-}
-
-.custom-range-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.custom-range-wrapper input[type="range"] {
-  flex: 1;
-  accent-color: var(--primary);
-}
-
-.range-val-badge {
-  min-width: 48px;
-  text-align: right;
-  font-family: monospace;
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--primary);
-}
-
-[data-theme="dark"] .range-val-badge {
-  color: var(--accent-light);
 }
 
 .custom-img-preview-box {
@@ -2276,5 +2235,3 @@ select option {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
-

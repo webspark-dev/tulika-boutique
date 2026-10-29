@@ -41,7 +41,6 @@ import {
   checkIsAdmin,
   getLastAdminCheckError,
   getLastAdminCheckDiagnostics,
-  withTimeout,
   PRODUCT_PHOTO_MAP,
   DEFAULT_CUSTOMIZATION
 } from './store.js';
@@ -91,15 +90,25 @@ function showToast(message, isError = false) {
 
   const toast = document.createElement('div');
   toast.className = `toast ${isError ? 'toast-error' : ''}`;
-  toast.innerHTML = `
-    <span>${isError ? '⚠️' : '✓'}</span>
-    <span>${message}</span>
-  `;
+  const icon = document.createElement('span');
+  icon.textContent = isError ? '⚠️' : '✓';
+  const text = document.createElement('span');
+  text.textContent = String(message);
+  toast.append(icon, text);
 
   container.appendChild(toast);
   setTimeout(() => {
     toast.remove();
   }, 4000);
+}
+
+function setImageUploadState(statusId, input, active, message = '') {
+  const status = document.getElementById(statusId);
+  if (!status) return;
+  status.hidden = !active;
+  const messageEl = status.querySelector('span');
+  if (messageEl) messageEl.textContent = message;
+  if (input) input.disabled = active;
 }
 
 /**
@@ -2136,6 +2145,10 @@ function loadCustomizationToForm(cust) {
   if (footCrBn) footCrBn.value = secs.footer?.copyright_bn || '';
   const footCrEn = document.getElementById('custom-sec-footer-cr-en');
   if (footCrEn) footCrEn.value = secs.footer?.copyright_en || '';
+  const footAboutBn = document.getElementById('custom-sec-footer-about-bn');
+  if (footAboutBn) footAboutBn.value = secs.footer?.about_bn || '';
+  const footAboutEn = document.getElementById('custom-sec-footer-about-en');
+  if (footAboutEn) footAboutEn.value = secs.footer?.about_en || '';
   const footFb = document.getElementById('custom-sec-footer-fb');
   if (footFb) footFb.value = secs.footer?.facebook_url || '';
   const footInsta = document.getElementById('custom-sec-footer-insta');
@@ -2151,8 +2164,8 @@ function loadCustomizationToForm(cust) {
   };
 
   syncDesignColor('custom-color-primary', 'custom-color-primary-picker', design.primary_color || '#5A1B33');
-  syncDesignColor('custom-color-secondary', 'custom-color-secondary-picker', design.secondary_color || '#D48C17');
-  syncDesignColor('custom-color-accent', 'custom-color-accent-picker', design.accent_color || '#1E6B58');
+  syncDesignColor('custom-color-secondary', 'custom-color-secondary-picker', design.secondary_color || '#1E6B58');
+  syncDesignColor('custom-color-accent', 'custom-color-accent-picker', design.accent_color || '#D48C17');
   syncDesignColor('custom-color-bg', 'custom-color-bg-picker', design.page_bg_color || design.bg_color || '#FDFBF7');
   syncDesignColor('custom-color-text', 'custom-color-text-picker', design.text_color || '#2D2327');
 
@@ -2257,6 +2270,8 @@ function gatherCustomizationFormData() {
         phone: document.getElementById('custom-sec-contact-phone')?.value.trim() || ''
       },
       footer: {
+        about_bn: document.getElementById('custom-sec-footer-about-bn')?.value.trim() || '',
+        about_en: document.getElementById('custom-sec-footer-about-en')?.value.trim() || '',
         copyright_bn: document.getElementById('custom-sec-footer-cr-bn')?.value.trim() || '',
         copyright_en: document.getElementById('custom-sec-footer-cr-en')?.value.trim() || '',
         facebook_url: document.getElementById('custom-sec-footer-fb')?.value.trim() || '',
@@ -2265,8 +2280,8 @@ function gatherCustomizationFormData() {
     },
     design: {
       primary_color: document.getElementById('custom-color-primary')?.value.trim() || '#5A1B33',
-      secondary_color: document.getElementById('custom-color-secondary')?.value.trim() || '#D48C17',
-      accent_color: document.getElementById('custom-color-accent')?.value.trim() || '#1E6B58',
+      secondary_color: document.getElementById('custom-color-secondary')?.value.trim() || '#1E6B58',
+      accent_color: document.getElementById('custom-color-accent')?.value.trim() || '#D48C17',
       page_bg_color: pageBgVal,
       bg_color: pageBgVal,
       text_color: document.getElementById('custom-color-text')?.value.trim() || '#2D2327',
@@ -2278,6 +2293,98 @@ function gatherCustomizationFormData() {
       container_max_width: contWidthVal,
       section_spacing: secSpacingVal
     }
+  };
+}
+
+function validateCustomizationFormData(customization) {
+  const isBn = getCurrentLang() === 'bn';
+  const invalidMessage = isBn
+    ? 'রঙ, ইমেইল, লিংক বা হিরো উচ্চতার মান যাচাই করুন।'
+    : 'Check the color, email, link, or hero height values.';
+  const hexColor = /^#[0-9A-Fa-f]{6}$/;
+  const colors = [
+    customization.design.primary_color,
+    customization.design.secondary_color,
+    customization.design.accent_color,
+    customization.design.page_bg_color,
+    customization.design.text_color
+  ];
+  const optionalColors = [
+    customization.header.bg_color,
+    customization.header.text_color,
+    customization.hero.bg_color,
+    customization.hero.text_color
+  ];
+  if (colors.some((color) => !hexColor.test(color)) || optionalColors.some((color) => color && !hexColor.test(color))) {
+    throw new Error(invalidMessage);
+  }
+
+  const email = customization.sections.contact.email;
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error(invalidMessage);
+
+  const isSafeHttpsUrl = (value) => {
+    if (!value) return true;
+    try {
+      return new URL(value).protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+  if (
+    !isSafeHttpsUrl(customization.sections.footer.facebook_url) ||
+    !isSafeHttpsUrl(customization.sections.footer.instagram_url)
+  ) {
+    throw new Error(invalidMessage);
+  }
+
+  const isSafeNavigationTarget = (value) => {
+    if (!value) return false;
+    if (value.startsWith('#')) return true;
+    try {
+      const target = new URL(value, window.location.href);
+      return target.origin === window.location.origin || target.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+  if (
+    !isSafeNavigationTarget(customization.hero.btn_target) ||
+    customization.nav_items.some((item) => !isSafeNavigationTarget(item.target))
+  ) {
+    throw new Error(invalidMessage);
+  }
+
+  if (!/^(?:\d{1,3}vh|\d{1,4}px|\d{1,3}rem)$/.test(customization.hero.height)) {
+    throw new Error(invalidMessage);
+  }
+}
+
+function mergeCustomization(existing, incoming) {
+  const merge = (section) => ({ ...(existing[section] || {}), ...(incoming[section] || {}) });
+  const existingSections = existing.sections || {};
+  const incomingSections = incoming.sections || {};
+  const mergeSection = (section) => ({
+    ...(existingSections[section] || {}),
+    ...(incomingSections[section] || {})
+  });
+
+  return {
+    ...existing,
+    ...incoming,
+    logo: merge('logo'),
+    header: merge('header'),
+    hero: merge('hero'),
+    nav_items: incoming.nav_items,
+    sections: {
+      ...existingSections,
+      ...incomingSections,
+      collection: mergeSection('collection'),
+      about: mergeSection('about'),
+      reviews: mergeSection('reviews'),
+      contact: mergeSection('contact'),
+      footer: mergeSection('footer')
+    },
+    design: merge('design')
   };
 }
 
@@ -2406,19 +2513,16 @@ function setupCustomizationController() {
         previewImg.style.display = 'block';
       }
       if (placeholder) placeholder.style.display = 'none';
+      setImageUploadState(
+        'logo-upload-status',
+        logoFileInput,
+        true,
+        getCurrentLang() === 'bn' ? 'ছবি প্রসেস ও আপলোড হচ্ছে...' : 'Processing and uploading image...'
+      );
 
       try {
         showToast(getCurrentLang() === 'bn' ? 'লোগো প্রসেস ও আপলোড হচ্ছে...' : 'Processing and uploading logo...');
-        let publicUrl;
-        if (file.type === 'image/svg+xml') {
-          const reader = new FileReader();
-          publicUrl = await new Promise((resolve) => {
-            reader.onload = () => resolve(reader.result);
-            reader.readAsDataURL(file);
-          });
-        } else {
-          publicUrl = await processAndUploadImage(file);
-        }
+        const publicUrl = await processAndUploadImage(file, 'site_logo');
         uploadedLogoUrl = publicUrl;
         if (previewImg) previewImg.src = publicUrl;
         markCustomizationDirty();
@@ -2432,6 +2536,8 @@ function setupCustomizationController() {
           if (placeholder) placeholder.style.display = 'block';
         }
       } finally {
+        URL.revokeObjectURL(tempUrl);
+        setImageUploadState('logo-upload-status', logoFileInput, false);
         logoFileInput.value = '';
       }
     });
@@ -2478,10 +2584,16 @@ function setupCustomizationController() {
       const tempUrl = URL.createObjectURL(file);
       if (heroBox) heroBox.style.backgroundImage = `url("${tempUrl}")`;
       if (heroText) heroText.style.display = 'none';
+      setImageUploadState(
+        'hero-upload-status',
+        heroBgFileInput,
+        true,
+        getCurrentLang() === 'bn' ? 'ছবি প্রসেস ও আপলোড হচ্ছে...' : 'Processing and uploading image...'
+      );
 
       try {
         showToast(getCurrentLang() === 'bn' ? 'হিরো ইমেজ প্রসেস ও আপলোড হচ্ছে...' : 'Processing and uploading hero banner...');
-        const publicUrl = await processAndUploadImage(file);
+        const publicUrl = await processAndUploadImage(file, 'site_hero');
         uploadedHeroBgUrl = publicUrl;
         if (heroBox) heroBox.style.backgroundImage = `url("${publicUrl}")`;
         markCustomizationDirty();
@@ -2495,6 +2607,8 @@ function setupCustomizationController() {
           if (heroText) heroText.style.display = 'inline-block';
         }
       } finally {
+        URL.revokeObjectURL(tempUrl);
+        setImageUploadState('hero-upload-status', heroBgFileInput, false);
         heroBgFileInput.value = '';
       }
     });
@@ -2522,8 +2636,14 @@ function setupCustomizationController() {
       saveBtn.textContent = isBn ? 'সংরক্ষণ হচ্ছে...' : 'Saving...';
       try {
         const payload = gatherCustomizationFormData();
-        await updateSettings({ customization: payload });
-        adminSettings = { ...(adminSettings || {}), customization: payload };
+        validateCustomizationFormData(payload);
+        const savedCustomization = mergeCustomization(
+          currentCustomization || DEFAULT_CUSTOMIZATION,
+          payload
+        );
+        await updateSettings({ customization: savedCustomization });
+        currentCustomization = savedCustomization;
+        adminSettings = { ...(adminSettings || {}), customization: savedCustomization };
         clearCustomizationDirty();
         showToast(isBn ? 'কাস্টমাইজেশন সফলভাবে সংরক্ষিত হয়েছে!' : 'Customization saved successfully!');
       } catch (err) {

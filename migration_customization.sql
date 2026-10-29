@@ -7,31 +7,28 @@
 ALTER TABLE public.settings
   ADD COLUMN IF NOT EXISTS customization JSONB NOT NULL DEFAULT '{}'::jsonb;
 
--- 2. Ensure Row-Level Security allows public to read and admins to update
--- (Public can read settings for storefront display, only authenticated admins can update)
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE tablename = 'settings' AND policyname = 'Public can view settings'
-  ) THEN
-    CREATE POLICY "Public can view settings" ON public.settings
-      FOR SELECT USING (true);
-  END IF;
+-- 2. Keep public settings reads independent of admin authorization checks.
+-- Admin writes still require an authenticated account approved by is_admin().
+DROP POLICY IF EXISTS "Public can view settings" ON public.settings;
+CREATE POLICY "Public can view settings"
+  ON public.settings FOR SELECT TO anon, authenticated
+  USING (true);
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE tablename = 'settings' AND policyname = 'Admins can manage settings'
-  ) THEN
-    CREATE POLICY "Admins can manage settings" ON public.settings
-      FOR ALL TO authenticated
-      USING (public.is_admin())
-      WITH CHECK (public.is_admin());
-  END IF;
-END $$;
+DROP POLICY IF EXISTS "Admins can manage settings" ON public.settings;
+DROP POLICY IF EXISTS "Admins can insert settings" ON public.settings;
+DROP POLICY IF EXISTS "Admins can update settings" ON public.settings;
+DROP POLICY IF EXISTS "Admins can delete settings" ON public.settings;
+CREATE POLICY "Admins can insert settings"
+  ON public.settings FOR INSERT TO authenticated
+  WITH CHECK (public.is_admin());
+CREATE POLICY "Admins can update settings"
+  ON public.settings FOR UPDATE TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+CREATE POLICY "Admins can delete settings"
+  ON public.settings FOR DELETE TO authenticated
+  USING (public.is_admin());
 
 -- 3. Ensure product-images storage bucket permits SVG logos alongside JPG, PNG, WebP
 UPDATE storage.buckets
 SET allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']
 WHERE id = 'product-images';
-

@@ -56,6 +56,15 @@ py -m http.server 8000
 - Supabase SQL Editor-এ `03_enable_storefront_realtime.sql` একবার চালান। এটি `products`, `categories`, এবং `settings`-কে `supabase_realtime` publication-এ যোগ করে; RLS বা Storage অনুমতি দুর্বল করে না।
 - এরপর খোলা storefront-এ কোনও অ্যাডমিনের product price, stock, visibility, category, বা website settings পরিবর্তন সাধারণত সঙ্গে সঙ্গেই দেখা যাবে—Vercel/Netlify deploy লাগবে না।
 - Realtime সংযোগ সাময়িকভাবে অনুপলব্ধ থাকলে storefront প্রতি 60 সেকেন্ডে নিরাপদভাবে নতুন data পরীক্ষা করবে।
+- Admin Panel-এর **ওয়েবসাইট কাস্টমাইজেশন** থেকে ব্র্যান্ড নাম/লোগো, হিরো ব্যানার ও লেখা, রং, সেকশন visibility, যোগাযোগ ইমেইল এবং ফুটার/সোশ্যাল তথ্য পরিবর্তন করা যায়। এগুলো `public.settings.customization`-এ থাকে; public storefront কেবল read করে, আর বিদ্যমান RLS policy শুধু `public.is_admin()`-অনুমোদিত account-কে settings বদলাতে দেয়।
+- Logo ও banner `product-images` public-read bucket-এ নতুন, আলাদা WebP object হিসেবে upload হয়। বিদ্যমান admin-only Storage write policies ব্যবহৃত হয়; পুরোনো asset স্বয়ংক্রিয়ভাবে মোছা হয় না। Orphan cleanup চালালে এটি product এবং বর্তমান website settings—দুই জায়গার references যাচাই করে।
+- Store name, phone, address ও business hours আগের মতোই `settings` টেবিলের বিদ্যমান fields-এ পরিচালিত হয়। Customization save ও Realtime update-এর জন্য নতুন SQL migration বা Vercel deploy প্রয়োজন নেই, যদি schema/policies এবং `03_enable_storefront_realtime.sql` আগে থেকেই চালানো থাকে।
+
+### বিদ্যমান ডাটাবেজে Public RLS read error ঠিক করা
+- যদি storefront-এ `permission denied for function is_admin` দেখা যায়, Supabase SQL Editor-এ আগে `06_public_read_policy_fix.sql` পর্যালোচনা করে চালান। এটি দৃশ্যমান products/reviews-এর public SELECT policy থেকে `is_admin()` সরায়; hidden data ও সব write কেবল authenticated admin-এর জন্য রাখে।
+- Migration-টি RLS বন্ধ করে না, anonymous-কে admin helper চালাতে দেয় না, admin authorization function-এর authenticated grant বজায় রাখে, এবং আগের ভুল anonymous grant থাকলে তা প্রত্যাহার করে।
+- `migration_reviews_moderation.sql` এখন একই নিরাপদ review policies ব্যবহার করে। Fresh setup-এ `schema.sql` বা `01_schema_and_policies.sql` চালালে নতুন policies তৈরি হবে।
+- এটি Supabase database পরিবর্তন করে; SQL চালানোর আগে policy list যাচাই করুন। এই migration চালানো বা production database পরিবর্তন স্বয়ংক্রিয়ভাবে করা হয় না। Frontend-এর পরিবর্তন নয়, তাই একা এটির জন্য Vercel redeploy লাগে না।
 
 ### ধাপ ৪: প্রথম অ্যাডমিন অ্যাকাউন্ট তৈরি ও অনুমোদন
 1. সুপাবেস ড্যাশবোর্ডে **Authentication** &rarr; **Users** &rarr; **"Add user"** ক্লিক করুন।
@@ -136,4 +145,3 @@ py -m http.server 8000
 - ❌ কোনো পেইড ইমেজ CDN নেই (সুপাবেস স্টোরেজ ও ইনলাইন SVG)।
 - ❌ কোনো ক্রেডিট কার্ড বা ট্রায়াল পিরিয়ড নেই।
 - ❌ কোনো npm, webpack, vite বা জটিল ডিপেন্ডেন্সি নেই।
-
