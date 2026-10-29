@@ -552,11 +552,8 @@ export async function getCategories() {
       console.warn('Supabase getCategories query error, using fallback:', error.message);
       return [...mockCategories].sort((a, b) => a.sort_order - b.sort_order);
     }
-    if (!data || data.length === 0) {
-      console.info('No categories found in database, using fallback categories');
-      return [...mockCategories].sort((a, b) => a.sort_order - b.sort_order);
-    }
-    return data;
+    // Return genuine Supabase categories (or empty array if none exist)
+    return data || [];
   } catch (err) {
     console.warn('getCategories network error, using fallback:', err);
     return [...mockCategories].sort((a, b) => a.sort_order - b.sort_order);
@@ -674,6 +671,7 @@ export async function reorderCategories(orderedIds) {
 function getMockProductsFiltered({
   categoryId = null,
   search = '',
+  matchingCategoryIds = [],
   includeHidden = false,
   page = 1,
   limit = 50
@@ -685,14 +683,17 @@ function getMockProductsFiltered({
   if (categoryId && categoryId !== 'all') {
     list = list.filter((p) => p.category_id === categoryId);
   }
-  if (search.trim()) {
-    const q = search.trim().toLowerCase();
+  const cleanSearch = (search || '').replace(/[,()\\;"']/g, ' ').replace(/\s+/g, ' ').trim();
+  if (cleanSearch) {
+    const q = cleanSearch.toLowerCase();
     list = list.filter(
       (p) =>
         p.name_bn.toLowerCase().includes(q) ||
         p.name_en.toLowerCase().includes(q) ||
         (p.description_bn && p.description_bn.toLowerCase().includes(q)) ||
-        (p.description_en && p.description_en.toLowerCase().includes(q))
+        (p.description_en && p.description_en.toLowerCase().includes(q)) ||
+        (p.fabric_type && p.fabric_type.toLowerCase().includes(q)) ||
+        (Array.isArray(matchingCategoryIds) && matchingCategoryIds.includes(p.category_id))
     );
   }
   const total = list.length;
@@ -704,13 +705,14 @@ function getMockProductsFiltered({
 export async function getProducts({
   categoryId = null,
   search = '',
+  matchingCategoryIds = [],
   includeHidden = false,
   page = 1,
   limit = 50
 } = {}) {
   const sb = getSupabase();
   if (!sb) {
-    return getMockProductsFiltered({ categoryId, search, includeHidden, page, limit });
+    return getMockProductsFiltered({ categoryId, search, matchingCategoryIds, includeHidden, page, limit });
   }
 
   try {
@@ -724,11 +726,29 @@ export async function getProducts({
       query = query.eq('category_id', categoryId);
     }
 
-    if (search.trim()) {
-      const term = `%${search.trim()}%`;
-      query = query.or(
-        `name_bn.ilike.${term},name_en.ilike.${term},description_bn.ilike.${term},description_en.ilike.${term}`
-      );
+    // Clean and sanitize search input to prevent PostgREST syntax errors
+    const cleanSearch = (search || '').replace(/[,()\\;"']/g, ' ').replace(/\s+/g, ' ').trim();
+
+    if (cleanSearch) {
+      const term = `%${cleanSearch}%`;
+      const orClauses = [
+        `name_bn.ilike.${term}`,
+        `name_en.ilike.${term}`,
+        `description_bn.ilike.${term}`,
+        `description_en.ilike.${term}`,
+        `fabric_type.ilike.${term}`
+      ];
+
+      // Add matching category IDs to the OR query when searching
+      if (Array.isArray(matchingCategoryIds) && matchingCategoryIds.length > 0) {
+        matchingCategoryIds.forEach((cId) => {
+          if (cId && typeof cId === 'string' && /^[0-9a-f-]{36}$/i.test(cId)) {
+            orClauses.push(`category_id.eq.${cId}`);
+          }
+        });
+      }
+
+      query = query.or(orClauses.join(','));
     }
 
     query = query.order('created_at', { ascending: false });
@@ -739,20 +759,23 @@ export async function getProducts({
 
     const { data, count, error } = await query;
     if (error) {
-      console.warn('Supabase query error, falling back to local demo products:', error.message);
-      return getMockProductsFiltered({ categoryId, search, includeHidden, page, limit });
-    }
-    if (!data || data.length === 0) {
-      if ((categoryId && categoryId !== 'all') || search.trim()) {
+      console.warn('Supabase query error:', error.message);
+      if ((categoryId && categoryId !== 'all') || cleanSearch) {
         return { data: [], count: 0 };
       }
-      return getMockProductsFiltered({ categoryId, search, includeHidden, page, limit });
+      return getMockProductsFiltered({ categoryId, search: cleanSearch, matchingCategoryIds, includeHidden, page, limit });
+    }
+    if (!data || data.length === 0) {
+      return { data: [], count: 0 };
     }
     const normalized = (data || []).map(normalizeProduct);
     return { data: normalized, count: count || normalized.length };
   } catch (err) {
-    console.warn('Network error reaching Supabase, falling back to local demo products:', err);
-    return getMockProductsFiltered({ categoryId, search, includeHidden, page, limit });
+    console.warn('Network error reaching Supabase:', err);
+    if ((categoryId && categoryId !== 'all') || search) {
+      return { data: [], count: 0 };
+    }
+    return getMockProductsFiltered({ categoryId, search, matchingCategoryIds, includeHidden, page, limit });
   }
 }
 
@@ -1428,47 +1451,31 @@ export async function checkIsAdmin(user, timeoutMs = 20000) {
   const isBn = getCurrentLang() === 'bn';
   const timeoutMsg = isBn ? 'অ্যাডমিন স্ট্যাটাস যাচাই সময়সীমা উত্তীর্ণ' : 'Admin check timed out';
 
-  // Diagnostic: Inspect authenticated session state on Supabase client
+  // Strategy 1: Try public.is_admin() RPC function
   try {
-    const { data: sessionData, error: sessionErr } = await sb.auth.getSession();
-    const session = sessionData?.session;
-    console.log('[checkIsAdmin] Diagnostic session inspection:', {
-      hasSession: Boolean(session),
-      sessionUserId: session?.user?.id,
-      targetUserId: user.id,
-      idsMatch: session?.user?.id === user.id,
-      hasAccessToken: Boolean(session?.access_token),
-      tokenLength: session?.access_token ? session.access_token.length : 0,
-      sessionError: sessionErr ? sessionErr.message : null
-    });
-  } catch (diagErr) {
-    console.warn('[checkIsAdmin] Diagnostic getSession error:', diagErr.message);
+    const rpcPromise1 = sb.rpc('is_admin');
+    const { data: rpc1Result, error: rpc1Error } = await withTimeout(rpcPromise1, 5000, 'RPC is_admin timeout');
+    if (!rpc1Error && typeof rpc1Result === 'boolean' && rpc1Result === true) {
+      return true;
+    }
+  } catch (rpc1Ex) {
+    // Non-fatal, proceed to next verification strategy
   }
 
-  // Strategy 1: Try dedicated RPC helper is_current_user_admin()
-  const rpcStart = performance.now();
+  // Strategy 2: Try public.is_current_user_admin() RPC function
   try {
-    console.log('[checkIsAdmin] Strategy 1: Calling sb.rpc("is_current_user_admin")...');
-    const rpcPromise = sb.rpc('is_current_user_admin');
-    const { data: rpcIsAdmin, error: rpcError } = await withTimeout(rpcPromise, 6000, 'RPC check timeout');
-    const rpcDuration = Math.round(performance.now() - rpcStart);
-    console.log(`[checkIsAdmin] Strategy 1 RPC response (${rpcDuration}ms):`, { rpcIsAdmin, error: rpcError });
-
-    if (!rpcError && typeof rpcIsAdmin === 'boolean') {
-      return rpcIsAdmin;
+    const rpcPromise2 = sb.rpc('is_current_user_admin');
+    const { data: rpc2Result, error: rpc2Error } = await withTimeout(rpcPromise2, 5000, 'RPC is_current_user_admin timeout');
+    if (!rpc2Error && typeof rpc2Result === 'boolean' && rpc2Result === true) {
+      return true;
     }
-    if (rpcError) {
-      console.warn('[checkIsAdmin] Strategy 1 RPC returned error:', rpcError);
-    }
-  } catch (rpcEx) {
-    const rpcDuration = Math.round(performance.now() - rpcStart);
-    console.warn(`[checkIsAdmin] Strategy 1 RPC exception (${rpcDuration}ms):`, rpcEx.message);
+  } catch (rpc2Ex) {
+    // Non-fatal, proceed to direct table query
   }
 
-  // Strategy 2: Direct query on public.admins matching auth.uid() = user_id
+  // Strategy 3: Direct query on public.admins matching auth.uid() = user_id
   const tableStart = performance.now();
   try {
-    console.log(`[checkIsAdmin] Strategy 2: Querying public.admins for user_id = ${user.id}...`);
     const checkPromise = sb
       .from('admins')
       .select('user_id')
@@ -1477,10 +1484,9 @@ export async function checkIsAdmin(user, timeoutMs = 20000) {
 
     const { data, error } = await withTimeout(checkPromise, timeoutMs, timeoutMsg);
     const tableDuration = Math.round(performance.now() - tableStart);
-    console.log(`[checkIsAdmin] Strategy 2 Table query response (${tableDuration}ms):`, { data, error });
 
     if (error) {
-      console.error('[checkIsAdmin] Strategy 2 error from Supabase:', error);
+      console.error('[checkIsAdmin] Strategy 3 error from Supabase:', error);
       lastAdminCheckError = error;
       return false;
     }
@@ -1488,7 +1494,7 @@ export async function checkIsAdmin(user, timeoutMs = 20000) {
     return Boolean(data && data.user_id === user.id);
   } catch (err) {
     const tableDuration = Math.round(performance.now() - tableStart);
-    console.error(`[checkIsAdmin] Strategy 2 exception (${tableDuration}ms):`, err.message);
+    console.error(`[checkIsAdmin] Strategy 3 exception (${tableDuration}ms):`, err.message);
     lastAdminCheckError = err;
     return false;
   }

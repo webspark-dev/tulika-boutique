@@ -598,6 +598,28 @@ function applyCustomizationToDOM(customization, lang = getCurrentLang()) {
 /**
  * Render Category Tabs with keyboard navigation (Arrows, Home, End)
  */
+/**
+ * Find category IDs that match the search term in name or slug
+ */
+function getMatchingCategoryIds(query) {
+  if (!query || !query.trim() || !Array.isArray(allCategories) || allCategories.length === 0) {
+    return [];
+  }
+  const cleanQ = query.replace(/[,()\\;"']/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!cleanQ) return [];
+  return allCategories
+    .filter((cat) => {
+      const bnMatch = cat.name_bn && cat.name_bn.toLowerCase().includes(cleanQ);
+      const enMatch = cat.name_en && cat.name_en.toLowerCase().includes(cleanQ);
+      const slugMatch = cat.slug && cat.slug.toLowerCase().includes(cleanQ);
+      return bnMatch || enMatch || slugMatch;
+    })
+    .map((cat) => cat.id);
+}
+
+/**
+ * Render Category Tabs with keyboard navigation (Arrows, Home, End)
+ */
 async function loadCategories() {
   try {
     allCategories = await getCategories();
@@ -606,6 +628,10 @@ async function loadCategories() {
     allCategories = [];
   }
   renderCategories();
+  // Ensure product cards have category names attached once categories are loaded
+  if (currentProducts && currentProducts.length > 0) {
+    renderProducts();
+  }
 }
 
 function renderCategories() {
@@ -619,25 +645,29 @@ function renderCategories() {
 
   // "All Products" tab
   const allBtn = document.createElement('button');
-  allBtn.className = 'tab-btn';
+  const isAllSelected = activeCategoryId === 'all';
+  allBtn.className = `tab-btn ${isAllSelected ? 'active' : ''}`;
   allBtn.setAttribute('role', 'tab');
   allBtn.setAttribute('id', 'tab-all');
+  allBtn.setAttribute('data-category-id', 'all');
   allBtn.setAttribute('aria-controls', 'product-grid');
-  allBtn.setAttribute('aria-selected', activeCategoryId === 'all' ? 'true' : 'false');
-  allBtn.setAttribute('tabindex', activeCategoryId === 'all' ? '0' : '-1');
+  allBtn.setAttribute('aria-selected', isAllSelected ? 'true' : 'false');
+  allBtn.setAttribute('tabindex', isAllSelected ? '0' : '-1');
   allBtn.textContent = isBn ? 'সকল পণ্য' : 'All Products';
   allBtn.addEventListener('click', () => selectCategory('all'));
   tablist.appendChild(allBtn);
 
-  // Category items
+  // Category items (Sarees, Kurtis, Dupattas, Jewellery, etc.)
   allCategories.forEach((cat) => {
+    const isSelected = String(activeCategoryId) === String(cat.id);
     const btn = document.createElement('button');
-    btn.className = 'tab-btn';
+    btn.className = `tab-btn ${isSelected ? 'active' : ''}`;
     btn.setAttribute('role', 'tab');
     btn.setAttribute('id', `tab-${cat.id}`);
+    btn.setAttribute('data-category-id', cat.id);
     btn.setAttribute('aria-controls', 'product-grid');
-    btn.setAttribute('aria-selected', activeCategoryId === cat.id ? 'true' : 'false');
-    btn.setAttribute('tabindex', activeCategoryId === cat.id ? '0' : '-1');
+    btn.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+    btn.setAttribute('tabindex', isSelected ? '0' : '-1');
     btn.textContent = isBn ? cat.name_bn : cat.name_en;
     btn.addEventListener('click', () => selectCategory(cat.id));
     tablist.appendChild(btn);
@@ -680,10 +710,10 @@ function selectCategory(catId) {
   if (tablist) {
     const tabs = tablist.querySelectorAll('[role="tab"]');
     tabs.forEach((tab) => {
-      const isSelected =
-        (catId === 'all' && tab.id === 'tab-all') || tab.id === `tab-${catId}`;
+      const isSelected = String(tab.getAttribute('data-category-id') || '') === String(catId);
       tab.setAttribute('aria-selected', isSelected ? 'true' : 'false');
       tab.setAttribute('tabindex', isSelected ? '0' : '-1');
+      tab.classList.toggle('active', isSelected);
     });
   }
   loadProductGrid();
@@ -710,17 +740,24 @@ function showProductSkeletons() {
     .join('');
 }
 
+let currentProductRequestId = 0;
+
 async function loadProductGrid() {
+  const reqId = ++currentProductRequestId;
   showProductSkeletons();
   try {
+    const matchingCategoryIds = getMatchingCategoryIds(searchQuery);
     const { data } = await getProducts({
       categoryId: activeCategoryId,
       search: searchQuery,
+      matchingCategoryIds,
       includeHidden: false
     });
-    currentProducts = data;
+    if (reqId !== currentProductRequestId) return;
+    currentProducts = data || [];
     renderProducts();
   } catch (err) {
+    if (reqId !== currentProductRequestId) return;
     console.error('Failed to load products:', err);
     renderProductError();
   }
@@ -755,17 +792,51 @@ function renderProducts() {
   }
 
   if (displayProducts.length === 0) {
+    const currentCatObj = allCategories.find((c) => String(c.id) === String(activeCategoryId));
+    const currentCatName = currentCatObj ? (isBn ? currentCatObj.name_bn : currentCatObj.name_en) : '';
+
+    let emptyTitle = t('noProductsFound');
+    let emptySub = t('noProductsSub');
+    let showReset = false;
+
+    if (searchQuery && activeCategoryId !== 'all') {
+      emptySub = isBn
+        ? `"${currentCatName || 'নির্বাচিত'}" বিভাগে "${searchQuery}" অনুসন্ধানে কোনো পণ্য পাওয়া যায়নি।`
+        : `No products matching "${searchQuery}" found in "${currentCatName || 'selected'}" category.`;
+      showReset = true;
+    } else if (searchQuery) {
+      emptySub = isBn
+        ? `"${searchQuery}" অনুসন্ধানে কোনো পণ্য পাওয়া যায়নি। অন্য কোনো নাম দিয়ে চেষ্টা করুন।`
+        : `No products matching "${searchQuery}". Try searching with different keywords.`;
+      showReset = true;
+    } else if (activeCategoryId !== 'all') {
+      emptySub = isBn
+        ? `"${currentCatName || 'এই'}" বিভাগে বর্তমানে কোনো পণ্য নেই। শীঘ্রই নতুন সম্ভার যুক্ত হবে।`
+        : `No products currently available in "${currentCatName || 'this'}" category.`;
+      showReset = true;
+    } else if (inStockOnly) {
+      emptySub = isBn
+        ? 'বর্তমানে স্টকে থাকা কোনো পণ্য পাওয়া যায়নি।'
+        : 'No products are currently in stock.';
+      showReset = true;
+    }
+
     grid.innerHTML = `
       <div class="state-box">
         <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
-        <h3>${t('noProductsFound')}</h3>
-        <p>${t('noProductsSub')}</p>
-        <button class="btn btn-secondary btn-sm" id="reset-search-btn">${isBn ? 'সব পণ্য দেখুন' : 'Show All Products'}</button>
+        <h3>${emptyTitle}</h3>
+        <p>${emptySub}</p>
+        ${
+          showReset
+            ? `<button class="btn btn-secondary btn-sm" id="reset-search-btn">${isBn ? 'ফিল্টার রিসেট করুন' : 'Reset Filters'}</button>`
+            : ''
+        }
       </div>
     `;
+
     const resetBtn = document.getElementById('reset-search-btn');
     if (resetBtn) {
       resetBtn.addEventListener('click', () => {
@@ -775,9 +846,17 @@ function renderProducts() {
         activeSort = 'newest';
         const searchInput = document.getElementById('product-search-input');
         if (searchInput) searchInput.value = '';
+        const clearBtn = document.getElementById('product-search-clear');
+        if (clearBtn) clearBtn.style.display = 'none';
         const inStockCheckbox = document.getElementById('filter-instock-only');
         if (inStockCheckbox) inStockCheckbox.checked = false;
         const sortSelect = document.getElementById('product-sort-select');
+        if (sortSelect) sortSelect.value = 'newest';
+        selectCategory('all');
+      });
+    }
+    return;
+  }
         if (sortSelect) sortSelect.value = 'newest';
         selectCategory('all');
       });
@@ -949,20 +1028,56 @@ function renderProductError() {
 }
 
 /**
- * Setup Real-Time Search with Debounce
+ * Setup Real-Time Search with Debounce and Clear Controls
  */
 function initSearch() {
   const input = document.getElementById('product-search-input');
+  const clearBtn = document.getElementById('product-search-clear');
   if (!input) return;
 
+  const handleSearchChange = () => {
+    searchQuery = input.value.trim();
+    if (clearBtn) {
+      clearBtn.style.display = searchQuery ? 'inline-flex' : 'none';
+    }
+    loadProductGrid();
+  };
+
   let timer = null;
-  input.addEventListener('input', (e) => {
+  input.addEventListener('input', () => {
     clearTimeout(timer);
-    timer = setTimeout(() => {
-      searchQuery = e.target.value.trim();
-      loadProductGrid();
-    }, 250);
+    if (clearBtn) {
+      clearBtn.style.display = input.value.trim() ? 'inline-flex' : 'none';
+    }
+    timer = setTimeout(handleSearchChange, 250);
   });
+
+  input.addEventListener('search', () => {
+    clearTimeout(timer);
+    handleSearchChange();
+  });
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      clearTimeout(timer);
+      handleSearchChange();
+    } else if (e.key === 'Escape') {
+      input.value = '';
+      clearTimeout(timer);
+      handleSearchChange();
+    }
+  });
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      clearBtn.style.display = 'none';
+      searchQuery = '';
+      input.focus();
+      loadProductGrid();
+    });
+  }
 }
 
 /**

@@ -759,7 +759,7 @@ h1, h2, h3, h4, .font-display {
 
 .search-box input {
   width: 100%;
-  padding: 0.65rem 1.25rem 0.65rem 2.6rem;
+  padding: 0.65rem 2.4rem 0.65rem 2.6rem;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border);
   background: var(--surface);
@@ -780,6 +780,27 @@ h1, h2, h3, h4, .font-display {
   transform: translateY(-50%);
   color: var(--text-muted);
   pointer-events: none;
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition);
+}
+
+.search-clear-btn:hover {
+  color: var(--text-main);
 }
 
 /* Product Grid */

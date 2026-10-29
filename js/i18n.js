@@ -36,6 +36,9 @@ export const translations = {
     searchPlaceholder: 'পণ্য বা বিভাগের নাম খুঁজুন...',
     noProductsFound: 'কোনো পণ্য পাওয়া যায়নি',
     noProductsSub: 'অন্য কোনো নাম বা বিভাগ নির্বাচন করে পুনরায় চেষ্টা করুন।',
+    clearSearch: 'অনুসন্ধান মুছুন',
+    clearFilters: 'ফিল্টার রিসেট করুন',
+    showAllProducts: 'সব পণ্য দেখুন',
     featured: 'সেরা পছন্দ',
     newBadge: 'নতুন',
     soldOutBadge: 'স্টক শেষ',
@@ -107,6 +110,7 @@ export const translations = {
     unauthorizedTitle: 'অননুমোদিত ব্যবহারকারী',
     unauthorizedMsg: 'আপনার অ্যাকাউন্টটি সিস্টেমের admins টেবিলে নিবন্ধিত নয়। অনুগ্রহ করে অনুমোদিত অ্যাডমিন হিসেবে সাইন ইন করুন।',
     unauthorizedSwitchAccount: 'ভিন্ন অ্যাকাউন্ট দিয়ে লগইন করুন',
+    unauthorizedRecheck: '🔄 অনুমোদন পুনরায় পরীক্ষা করুন',
     returnHome: 'মূল ওয়েবসাইটে ফিরুন',
     adminHintTitle: 'অ্যাডমিন অ্যাকাউন্ট তথ্য:',
     adminHintBody: 'নিবন্ধিত অ্যাডমিন ইমেইল palasdas2006@gmail.com। Supabase প্রকল্পে পাসওয়ার্ড সেট না থাকলে ম্যাজিক লিংক / ওটিপি ট্যাব ব্যবহার করুন অথবা Supabase ড্যাশবোর্ড থেকে পাসওয়ার্ড সেট করুন।',
@@ -396,6 +400,9 @@ export const translations = {
     searchPlaceholder: 'Search products or category...',
     noProductsFound: 'No products found',
     noProductsSub: 'Try searching with another keyword or pick a different category.',
+    clearSearch: 'Clear Search',
+    clearFilters: 'Reset Filters',
+    showAllProducts: 'Show All Products',
     featured: 'Featured',
     newBadge: 'New',
     soldOutBadge: 'Sold Out',
@@ -467,6 +474,7 @@ export const translations = {
     unauthorizedTitle: 'Access Refused',
     unauthorizedMsg: 'Your account is authenticated but does not exist in the admins table. Access is restricted.',
     unauthorizedSwitchAccount: 'Sign in with a different account',
+    unauthorizedRecheck: '🔄 Re-check Admin Access',
     returnHome: 'Return to Website',
     adminHintTitle: 'Admin Account Info:',
     adminHintBody: 'Registered admin email palasdas2006@gmail.com. If no password is set yet in Supabase, sign in with Magic Link / OTP or set your password in the Supabase dashboard.',
@@ -806,6 +814,14 @@ export function applyI18nToDOM(lang = getCurrentLang()) {
     const key = el.getAttribute('data-i18n-title');
     if (key && translations[lang]?.[key]) {
       el.setAttribute('title', translations[lang][key]);
+    }
+  });
+
+  // 3b. Accessible labels with data-i18n-aria-label
+  document.querySelectorAll('[data-i18n-aria-label]').forEach((el) => {
+    const key = el.getAttribute('data-i18n-aria-label');
+    if (key && translations[lang]?.[key]) {
+      el.setAttribute('aria-label', translations[lang][key]);
     }
   });
 

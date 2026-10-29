@@ -468,6 +468,13 @@ async function initAuth() {
         if (isUserAdmin) return; // Prevent duplicate execution if already authorized
         currentUser = session.user;
         const isAdmin = await checkIsAdmin(currentUser);
+        const lastErr = getLastAdminCheckError();
+
+        if (lastErr) {
+          console.warn('[onAuthStateChange] Admin check error:', lastErr);
+          return;
+        }
+
         if (isAdmin && !isUserAdmin) {
           isUserAdmin = true;
           if (loginSection) loginSection.style.display = 'none';
@@ -476,10 +483,8 @@ async function initAuth() {
           if (logoutBtn) logoutBtn.style.display = 'inline-flex';
           await loadAllAdminData();
         } else if (!isAdmin) {
+          // Show unauthorized screen with SQL helper; DO NOT call signOut() automatically
           displayUnauthorizedAccess(session.user);
-          await signOut().catch(() => {});
-          currentUser = null;
-          isUserAdmin = false;
         }
       } else if (event === 'SIGNED_OUT') {
         currentUser = null;
@@ -497,6 +502,17 @@ async function initAuth() {
     if (session && session.user) {
       currentUser = session.user;
       const isAdmin = await checkIsAdmin(currentUser);
+      const lastErr = getLastAdminCheckError();
+
+      if (lastErr) {
+        console.warn('getSession admin verification error:', lastErr);
+        if (loginSection) loginSection.style.display = 'block';
+        if (unauthorizedSection) unauthorizedSection.style.display = 'none';
+        if (dashboardContainer) dashboardContainer.style.display = 'none';
+        if (logoutBtn) logoutBtn.style.display = 'none';
+        return;
+      }
+
       if (isAdmin) {
         isUserAdmin = true;
         if (loginSection) loginSection.style.display = 'none';
@@ -505,11 +521,8 @@ async function initAuth() {
         if (logoutBtn) logoutBtn.style.display = 'inline-flex';
         await loadAllAdminData();
       } else {
-        // Authenticated in Supabase, but NOT in public.admins table: show details & auto sign out
+        // Authenticated in Supabase, but NOT in public.admins table: show details; DO NOT call signOut() automatically
         displayUnauthorizedAccess(session.user);
-        await signOut().catch(() => {});
-        currentUser = null;
-        isUserAdmin = false;
       }
     } else {
       // Unauthenticated
@@ -697,14 +710,24 @@ function setupAuthForms() {
 
         currentUser = data.user;
         const isAdmin = await checkIsAdmin(currentUser);
-        console.log('[Login Diagnostic] checkIsAdmin result:', isAdmin);
+        const lastErr = getLastAdminCheckError();
+        console.log('[Login Diagnostic] checkIsAdmin result:', { isAdmin, lastErr });
+
+        if (lastErr) {
+          // Network or database verification error - do NOT sign out, allow user to retry
+          if (errorMsg) {
+            errorMsg.innerHTML = isBn
+              ? `অ্যাডমিন যাচাইকরণে ত্রুটি: ${lastErr.message || lastErr}`
+              : `Admin verification error: ${lastErr.message || lastErr}`;
+            errorMsg.style.display = 'block';
+          }
+          return;
+        }
 
         if (!isAdmin) {
-          // Immediately sign out unauthorized user per Requirement 8
+          // Authenticated but not in public.admins: show unauthorized screen with copyable SQL
+          // DO NOT call signOut() automatically - keep screen visible so user can copy SQL or click switch account
           displayUnauthorizedAccess(currentUser);
-          await signOut().catch(() => {});
-          currentUser = null;
-          isUserAdmin = false;
           return;
         }
 
@@ -844,13 +867,22 @@ function setupAuthForms() {
         const data = await verifyOtp(activeOtpEmail, code);
         currentUser = data.user;
         const isAdmin = await checkIsAdmin(currentUser);
+        const lastErr = getLastAdminCheckError();
+
+        if (lastErr) {
+          if (otpErrorMsg) {
+            otpErrorMsg.innerHTML = isBn
+              ? `অ্যাডমিন যাচাইকরণে ত্রুটি: ${lastErr.message || lastErr}`
+              : `Admin verification error: ${lastErr.message || lastErr}`;
+            otpErrorMsg.style.display = 'block';
+          }
+          return;
+        }
 
         if (!isAdmin) {
-          // Immediately sign out unauthorized user per Requirement 8
+          // Authenticated but not in public.admins: show unauthorized screen with copyable SQL
+          // DO NOT call signOut() automatically
           displayUnauthorizedAccess(currentUser);
-          await signOut().catch(() => {});
-          currentUser = null;
-          isUserAdmin = false;
           return;
         }
 
@@ -932,6 +964,50 @@ function setupAuthForms() {
 
   const unauthorizedLogoutBtn = document.getElementById('unauthorized-logout-btn');
   if (unauthorizedLogoutBtn) unauthorizedLogoutBtn.addEventListener('click', handleLogout);
+
+  const unauthorizedRecheckBtn = document.getElementById('unauthorized-recheck-btn');
+  if (unauthorizedRecheckBtn) {
+    unauthorizedRecheckBtn.addEventListener('click', async () => {
+      const isBn = getCurrentLang() === 'bn';
+      unauthorizedRecheckBtn.disabled = true;
+      unauthorizedRecheckBtn.textContent = isBn ? 'যাচাই করা হচ্ছে...' : 'Verifying...';
+
+      try {
+        const session = await getSession();
+        if (!session?.user) {
+          showToast(isBn ? 'সেশন পাওয়া যায়নি, পুনরায় লগইন করুন' : 'No active session found, please log in again', true);
+          handleLogout();
+          return;
+        }
+
+        currentUser = session.user;
+        const isAdmin = await checkIsAdmin(currentUser);
+        const lastErr = getLastAdminCheckError();
+
+        if (lastErr) {
+          showToast(isBn ? `যাচাইকরণে ত্রুটি: ${lastErr.message || lastErr}` : `Verification error: ${lastErr.message || lastErr}`, true);
+          return;
+        }
+
+        if (isAdmin) {
+          isUserAdmin = true;
+          document.getElementById('admin-unauthorized-section').style.display = 'none';
+          document.getElementById('admin-dashboard-container').style.display = 'block';
+          document.getElementById('admin-logout-btn').style.display = 'inline-flex';
+          showToast(isBn ? 'অ্যাডমিন অনুমোদন সফল হয়েছে!' : 'Admin access verified successfully!');
+          await loadAllAdminData();
+        } else {
+          showToast(isBn ? 'এখনো admins টেবিলে অনুমতি মেলেনি। Supabase SQL Editor-এ কমান্ডটি চালান।' : 'Admin access not yet found. Please run the SQL in Supabase.', true);
+          displayUnauthorizedAccess(currentUser);
+        }
+      } catch (e) {
+        showToast(`ত্রুটি: ${e.message}`, true);
+      } finally {
+        unauthorizedRecheckBtn.disabled = false;
+        unauthorizedRecheckBtn.textContent = isBn ? t('unauthorizedRecheck') : '🔄 Re-check Admin Access';
+      }
+    });
+  }
 }
 
 /**
