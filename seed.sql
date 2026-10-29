@@ -91,7 +91,7 @@ VALUES
     true,
     true,
     true,
-    'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><defs><linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%235A1B33"/><stop offset="100%" stop-color="%238C2647"/></linearGradient></defs><rect width="400" height="400" rx="16" fill="url(%23g1)"/><path d="M40 80 Q200 40 360 80 L360 320 Q200 360 40 320 Z" fill="none" stroke="%23E3A02B" stroke-width="3" opacity="0.4"/><circle cx="200" cy="180" r="70" fill="none" stroke="%23E3A02B" stroke-width="2"/><text x="200" y="185" fill="%23FFFFFF" font-size="22" font-family="sans-serif" font-weight="bold" text-anchor="middle">ঢাকাই জামদানি</text><text x="200" y="225" fill="%23E3A02B" font-size="14" font-family="sans-serif" text-anchor="middle">Pure Handloom Cotton</text></svg>'
+    'assets/images/products/jamdani-saree.jpg'
   ),
 
   -- Product 2: Bishnupuri Silk Saree
@@ -107,7 +107,7 @@ VALUES
     true,
     false,
     true,
-    'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><defs><linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23381020"/><stop offset="100%" stop-color="%23681530"/></linearGradient></defs><rect width="400" height="400" rx="16" fill="url(%23g2)"/><rect x="50" y="50" width="300" height="300" rx="8" fill="none" stroke="%23E3A02B" stroke-dasharray="8 6" stroke-width="2"/><circle cx="200" cy="175" r="60" fill="%23E3A02B" opacity="0.15"/><text x="200" y="180" fill="%23FFFFFF" font-size="20" font-family="sans-serif" font-weight="bold" text-anchor="middle">বিষ্ণুপুরী সিল্ক</text><text x="200" y="215" fill="%23E3A02B" font-size="14" font-family="sans-serif" text-anchor="middle">Pure Katan Silk</text></svg>'
+    'assets/images/products/bishnupuri-silk.jpg'
   ),
 
   -- Product 3: Linen Saree (Sold out demo)
@@ -123,7 +123,7 @@ VALUES
     false,
     false,
     true,
-    'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><defs><linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%231E3B30"/><stop offset="100%" stop-color="%232D5948"/></linearGradient></defs><rect width="400" height="400" rx="16" fill="url(%23g3)"/><polygon points="200,60 340,320 60,320" fill="none" stroke="%23E3A02B" stroke-width="2" opacity="0.3"/><text x="200" y="195" fill="%23FFFFFF" font-size="20" font-family="sans-serif" font-weight="bold" text-anchor="middle">হাতে আঁকা লিনেন</text><text x="200" y="230" fill="%23E3A02B" font-size="14" font-family="sans-serif" text-anchor="middle">Organic Linen Art</text></svg>'
+    'assets/images/products/linen-saree.jpg'
   ),
 
   -- Product 4: Chanderi Anarkali Kurti
@@ -139,7 +139,7 @@ VALUES
     true,
     true,
     true,
-    'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><defs><linearGradient id="g4" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%236B4226"/><stop offset="100%" stop-color="%239E6238"/></linearGradient></defs><rect width="400" height="400" rx="16" fill="url(%23g4)"/><circle cx="200" cy="180" r="80" fill="none" stroke="%23E3A02B" stroke-width="2"/><text x="200" y="185" fill="%23FFFFFF" font-size="22" font-family="sans-serif" font-weight="bold" text-anchor="middle">চান্দেরি আনারকলি</text><text x="200" y="220" fill="%23E3A02B" font-size="14" font-family="sans-serif" text-anchor="middle">Chanderi Kurti Set</text></svg>'
+    'assets/images/products/chanderi-anarkali.jpg'
   ),
 
   -- Product 5: Kantha Stitch Kurti
@@ -155,7 +155,7 @@ VALUES
     false,
     true,
     true,
-    'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><defs><linearGradient id="g5" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%231E2B3E"/><stop offset="100%" stop-color="%232E4360"/></linearGradient></defs><rect width="400" height="400" rx="16" fill="url(%23g5)"/><rect x="60" y="60" width="280" height="280" rx="12" fill="none" stroke="%23E3A02B" stroke-width="2"/><text x="200" y="185" fill="%23FFFFFF" font-size="20" font-family="sans-serif" font-weight="bold" text-anchor="middle">কাঁথা স্টিচ কুর্তি</text><text x="200" y="220" fill="%23E3A02B" font-size="14" font-family="sans-serif" text-anchor="middle">Khadi Handcraft</text></svg>'
+    'assets/images/products/kantha-kurti.jpg'
   ),
 
   -- Product 6: Tussar Dupatta
@@ -171,7 +171,7 @@ VALUES
     true,
     false,
     true,
-    'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><defs><linearGradient id="g6" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23533827"/><stop offset="100%" stop-color="%237D563E"/></linearGradient></defs><rect width="400" height="400" rx="16" fill="url(%23g6)"/><ellipse cx="200" cy="180" rx="110" ry="70" fill="none" stroke="%23E3A02B" stroke-width="2"/><text x="200" y="185" fill="%23FFFFFF" font-size="20" font-family="sans-serif" font-weight="bold" text-anchor="middle">তসর সিল্ক ওড়না</text><text x="200" y="220" fill="%23E3A02B" font-size="14" font-family="sans-serif" text-anchor="middle">Wild Tussar Dupatta</text></svg>'
+    'assets/images/products/tussar-dupatta.jpg'
   ),
 
   -- Product 7: Dokra Necklace Set
@@ -187,7 +187,7 @@ VALUES
     true,
     true,
     true,
-    'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><defs><linearGradient id="g7" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%234A3525"/><stop offset="100%" stop-color="%236E4F37"/></linearGradient></defs><rect width="400" height="400" rx="16" fill="url(%23g7)"/><circle cx="200" cy="150" r="45" fill="%23E3A02B" opacity="0.3"/><path d="M140 230 C 140 300, 260 300, 260 230" fill="none" stroke="%23E3A02B" stroke-width="4"/><text x="200" y="155" fill="%23FFFFFF" font-size="20" font-family="sans-serif" font-weight="bold" text-anchor="middle">ডোকরা গহনা সেট</text><text x="200" y="190" fill="%23E3A02B" font-size="14" font-family="sans-serif" text-anchor="middle">Dokra Art Jewellery</text></svg>'
+    'assets/images/products/dokra-necklace.jpg'
   ),
 
   -- Product 8: Clay Terracotta Jhumka
@@ -203,7 +203,7 @@ VALUES
     false,
     false,
     true,
-    'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><defs><linearGradient id="g8" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%235C2B14"/><stop offset="100%" stop-color="%23873D1C"/></linearGradient></defs><rect width="400" height="400" rx="16" fill="url(%23g8)"/><circle cx="200" cy="160" r="50" fill="none" stroke="%23E3A02B" stroke-width="2"/><text x="200" y="165" fill="%23FFFFFF" font-size="20" font-family="sans-serif" font-weight="bold" text-anchor="middle">টেরাকোটা ঝুমকো</text><text x="200" y="200" fill="%23E3A02B" font-size="14" font-family="sans-serif" text-anchor="middle">Baked Terracotta Craft</text></svg>'
+    'assets/images/products/terracotta-jhumka.jpg'
   )
 ON CONFLICT (id) DO UPDATE SET
   name_bn = EXCLUDED.name_bn,

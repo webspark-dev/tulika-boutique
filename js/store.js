@@ -6,6 +6,243 @@
 
 import { getSupabase, isConfigured } from './supabase.js';
 import { WHATSAPP_PLACEHOLDER, SUPABASE_URL } from './config.js';
+import { getCurrentLang, t } from './i18n.js';
+
+// Local photo map for the 8 signature boutique products
+export const PRODUCT_PHOTO_MAP = {
+  'a1000000-0000-0000-0000-000000000001': 'assets/images/products/jamdani-saree.jpg',
+  'a1000000-0000-0000-0000-000000000002': 'assets/images/products/bishnupuri-silk.jpg',
+  'a1000000-0000-0000-0000-000000000003': 'assets/images/products/linen-saree.jpg',
+  'a1000000-0000-0000-0000-000000000004': 'assets/images/products/chanderi-anarkali.jpg',
+  'a1000000-0000-0000-0000-000000000005': 'assets/images/products/kantha-kurti.jpg',
+  'a1000000-0000-0000-0000-000000000006': 'assets/images/products/tussar-dupatta.jpg',
+  'a1000000-0000-0000-0000-000000000007': 'assets/images/products/dokra-necklace.jpg',
+  'a1000000-0000-0000-0000-000000000008': 'assets/images/products/terracotta-jhumka.jpg',
+  'p1000000-0000-0000-0000-000000000001': 'assets/images/products/jamdani-saree.jpg',
+  'p1000000-0000-0000-0000-000000000002': 'assets/images/products/bishnupuri-silk.jpg',
+  'p1000000-0000-0000-0000-000000000003': 'assets/images/products/linen-saree.jpg',
+  'p1000000-0000-0000-0000-000000000004': 'assets/images/products/chanderi-anarkali.jpg',
+  'p1000000-0000-0000-0000-000000000005': 'assets/images/products/kantha-kurti.jpg',
+  'p1000000-0000-0000-0000-000000000006': 'assets/images/products/tussar-dupatta.jpg',
+  'p1000000-0000-0000-0000-000000000007': 'assets/images/products/dokra-necklace.jpg',
+  'p1000000-0000-0000-0000-000000000008': 'assets/images/products/terracotta-jhumka.jpg'
+};
+
+export function normalizeProduct(p) {
+  if (!p) return p;
+  let updated = { ...p };
+
+  // Check if image is an uploaded Supabase Storage URL
+  const hasUploadedStorageImage =
+    typeof updated.image_url === 'string' &&
+    updated.image_url.includes('/storage/v1/object/public/product-images/');
+
+  // For the 8 signature demo products, always use the real verified on-disk photo
+  // unless an admin explicitly uploaded a custom image to Supabase Storage
+  if (PRODUCT_PHOTO_MAP[updated.id] && !hasUploadedStorageImage) {
+    updated.image_url = PRODUCT_PHOTO_MAP[updated.id];
+  } else if (!hasUploadedStorageImage) {
+    let img = (updated.image_url || '').trim();
+    // Normalize leading slash: "/assets/..." -> "assets/..."
+    if (img.startsWith('/assets/images/products/')) {
+      img = img.slice(1);
+    }
+    const isSvg = img.startsWith('data:image/svg');
+    const isPlaceholder = img.includes('placeholder') || img.includes('placehold.co') || !img;
+
+    if (isSvg || isPlaceholder) {
+      const title = `${updated.name_en || ''} ${updated.name_bn || ''}`.toLowerCase();
+      if (title.includes('jamdani') || title.includes('জামদানি')) {
+        img = 'assets/images/products/jamdani-saree.jpg';
+      } else if (title.includes('bishnupuri') || title.includes('বিষ্ণুপুরী') || title.includes('silk') || title.includes('সিল্ক')) {
+        img = 'assets/images/products/bishnupuri-silk.jpg';
+      } else if (title.includes('linen') || title.includes('লিনেন')) {
+        img = 'assets/images/products/linen-saree.jpg';
+      } else if (title.includes('chanderi') || title.includes('চান্দেরি') || title.includes('anarkali') || title.includes('আনারকলি')) {
+        img = 'assets/images/products/chanderi-anarkali.jpg';
+      } else if (title.includes('kantha') || title.includes('কাঁথা') || title.includes('kurti') || title.includes('কুর্তি')) {
+        img = 'assets/images/products/kantha-kurti.jpg';
+      } else if (title.includes('tussar') || title.includes('তসর') || title.includes('dupatta') || title.includes('ওড়না')) {
+        img = 'assets/images/products/tussar-dupatta.jpg';
+      } else if (title.includes('dokra') || title.includes('ডোকরা') || title.includes('necklace') || title.includes('নেকলেস')) {
+        img = 'assets/images/products/dokra-necklace.jpg';
+      } else if (title.includes('terracotta') || title.includes('টেরাকোটা') || title.includes('jhumka') || title.includes('ঝুমকো')) {
+        img = 'assets/images/products/terracotta-jhumka.jpg';
+      } else if (updated.category_id === 'c1000000-0000-0000-0000-000000000001') {
+        img = 'assets/images/products/jamdani-saree.jpg';
+      } else if (updated.category_id === 'c1000000-0000-0000-0000-000000000002') {
+        img = 'assets/images/products/chanderi-anarkali.jpg';
+      } else if (updated.category_id === 'c1000000-0000-0000-0000-000000000003') {
+        img = 'assets/images/products/tussar-dupatta.jpg';
+      } else {
+        img = 'assets/images/products/dokra-necklace.jpg';
+      }
+    }
+    updated.image_url = img || 'assets/images/products/jamdani-saree.jpg';
+  }
+
+  // Ensure luxury fashion e-commerce attributes
+  if (!updated.fabric_type) {
+    if (updated.name_en?.includes('Jamdani') || updated.name_bn?.includes('জামদানি')) {
+      updated.fabric_type = '১০০% খাঁটি সুতি ও রূপোলি জরি (100% Cotton & Silver Zari)';
+    } else if (updated.name_en?.includes('Silk') || updated.name_bn?.includes('সিল্ক')) {
+      updated.fabric_type = 'খাঁটি কাতান সিল্ক ও মিনাকারি (Pure Katan Silk & Minakari)';
+    } else if (updated.name_en?.includes('Linen') || updated.name_bn?.includes('লিনেন')) {
+      updated.fabric_type = 'অর্গানিক হ্যান্ডলুম লিনেন (Organic Handloom Linen)';
+    } else if (updated.name_en?.includes('Chanderi') || updated.name_bn?.includes('চান্দেরি')) {
+      updated.fabric_type = 'চান্দেরি কটন ও জরি এমব্রয়ডারি (Chanderi Cotton)';
+    } else if (updated.name_en?.includes('Kantha') || updated.name_bn?.includes('কাঁথা')) {
+      updated.fabric_type = 'খাদি কটন ও হস্তশিল্প কাঁথা (Handspun Khadi Cotton)';
+    } else if (updated.name_en?.includes('Tussar') || updated.name_bn?.includes('তসর')) {
+      updated.fabric_type = 'বুনো সোনালী তসর সিল্ক (Wild Golden Tussar Silk)';
+    } else if (updated.name_en?.includes('Dokra') || updated.name_bn?.includes('ডোকরা')) {
+      updated.fabric_type = 'হস্তনির্মিত বেল মেটাল ও ব্রাস (Lost-wax Bell Metal)';
+    } else if (updated.name_en?.includes('Terracotta') || updated.name_bn?.includes('টেরাকোটা')) {
+      updated.fabric_type = 'পোড়ামাটি ও প্রাকৃতিক রঞ্জক (Kiln-fired Clay)';
+    } else {
+      updated.fabric_type = 'খাঁটি হস্তশিল্প (Pure Handloom)';
+    }
+  }
+
+  if (!updated.available_sizes || !Array.isArray(updated.available_sizes) || updated.available_sizes.length === 0) {
+    if (updated.category_id === 'c1000000-0000-0000-0000-000000000002') {
+      // Kurtis
+      updated.available_sizes = ['S', 'M', 'L', 'XL', 'XXL'];
+    } else if (updated.category_id === 'c1000000-0000-0000-0000-000000000001') {
+      // Sarees
+      updated.available_sizes = ['Free Size (5.5m + Blouse)'];
+    } else if (updated.category_id === 'c1000000-0000-0000-0000-000000000003') {
+      // Dupattas
+      updated.available_sizes = ['Free Size (2.5m)'];
+    } else {
+      updated.available_sizes = ['Standard'];
+    }
+  }
+
+  if (!updated.sku_code) {
+    const cleanId = (updated.id || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase();
+    updated.sku_code = `TLK-${cleanId || 'PROD'}`;
+  }
+
+  return updated;
+}
+
+// Deep merge helper for customization options
+function deepMerge(target, source) {
+  const output = { ...target };
+  if (!source || typeof source !== 'object') return output;
+  for (const key of Object.keys(source)) {
+    if (source[key] instanceof Object && !Array.isArray(source[key]) && key in target) {
+      output[key] = deepMerge(target[key], source[key]);
+    } else {
+      output[key] = source[key];
+    }
+  }
+  return output;
+}
+
+// Default website customization configuration (fully customizable from Admin Panel)
+export const DEFAULT_CUSTOMIZATION = {
+  logo: {
+    url: '',
+    width: 130,
+    height: 42,
+    alignment: 'left',
+    alt: 'তূলিকা বুটিক লোগো',
+    brand_name_bn: 'তূলিকা',
+    brand_name_en: 'Tulika Boutique'
+  },
+  header: {
+    bg_color: '',
+    text_color: '',
+    height: 72,
+    logo_spacing: 16,
+    nav_spacing: 24,
+    nav_font_size: 15,
+    mobile_nav_visible: true
+  },
+  nav_items: [
+    { id: 'collection', label_bn: 'সম্ভার', label_en: 'Collection', target: '#products', visible: true, order: 1 },
+    { id: 'about', label_bn: 'আমাদের কথা', label_en: 'About Us', target: '#about', visible: true, order: 2 },
+    { id: 'reviews', label_bn: 'মতামত', label_en: 'Reviews', target: '#reviews', visible: true, order: 3 },
+    { id: 'contact', label_bn: 'যোগাযোগ', label_en: 'Contact', target: '#contact', visible: true, order: 4 }
+  ],
+  hero: {
+    headline_bn: 'বাংলার ঐতিহ্যবাহী বয়ন ও আধুনিক রূপ',
+    headline_en: 'Artistry in Bengal Handloom & Modern Grace',
+    subhead_bn: 'খাঁটি হাতে বোনা ঢাকাই জামদানি, তসর সিল্ক, কাঁথা স্টিচ কুর্তি ও ডোকরা ব্রাস গহনার অনন্য সম্ভার। সরাসরি হোয়াটসঅ্যাপে দ্রুত অর্ডার করুন।',
+    subhead_en: 'Explore pure handwoven Jamdani, Tussar silk, Kantha stitch kurtis, and Dokra brass accessories. Fast & personal ordering directly over WhatsApp.',
+    btn_label_bn: 'সম্ভার দেখুন',
+    btn_label_en: 'Explore Collection',
+    btn_target: '#products',
+    bg_image: '',
+    bg_position: 'center center',
+    text_alignment: 'center',
+    height: '80vh',
+    bg_color: '',
+    text_color: ''
+  },
+  sections: {
+    collection: {
+      visible: true,
+      title_bn: 'বুটিক সম্ভার',
+      title_en: 'Boutique Collection',
+      sub_bn: 'প্রতিটি সুতোয় ঐতিহ্য ও নিপুণ হাতের ছোঁয়া',
+      sub_en: 'Every weave tells a tale of handcrafted heritage'
+    },
+    about: {
+      visible: true,
+      title_bn: 'আমাদের কথা',
+      title_en: 'About Us',
+      desc_bn: 'তূলিকা একটি বিশ্বস্ত বুটিক যেখানে প্রতিটি শাড়ি ও পোশাক শৈল্পিক যত্ন এবং খাঁটি সুতো দিয়ে তৈরি করা হয়। আমাদের লক্ষ্য বাংলার সমৃদ্ধ বয়ন ঐতিহ্য ও আধুনিক ফ্যাশনের মেলবন্ধন ঘটিয়ে আপনার ব্যক্তিত্বকে অনন্য করে তোলা।',
+      desc_en: "Tulika is a bespoke boutique where every saree and outfit is crafted with artistic passion and pure fabrics. We celebrate Bengal's rich weaving legacy alongside contemporary grace to make your style truly timeless."
+    },
+    reviews: {
+      visible: true,
+      title_bn: 'গ্রাহকদের মতামত',
+      title_en: 'Customer Reviews',
+      sub_bn: 'আমাদের সন্তুষ্ট গ্রাহকদের কিছু মূল্যবান অভিজ্ঞতা',
+      sub_en: 'Cherished experiences from our patrons'
+    },
+    contact: {
+      visible: true,
+      title_bn: 'যোগাযোগ ও ঠিকানা',
+      title_en: 'Contact & Visit Us',
+      sub_bn: 'আমাদের শপে সরাসরি আসুন অথবা যেকোনো প্রয়োজনে ফোন/মেসেজ করুন',
+      sub_en: 'Visit our boutique or reach out via phone/message',
+      phone: '+91 98765 43210',
+      email: 'contact@tulikaboutique.com',
+      address_bn: '১২, শ্যামাপ্রসাদ মুখার্জি রোড, ভবানীপুর, কলকাতা ৭০০০২৫',
+      address_en: '12, Shyama Prasad Mukherjee Road, Bhowanipore, Kolkata 700025'
+    },
+    footer: {
+      about_bn: 'বাংলার সমৃদ্ধ ঐতিহ্য, খাঁটি বয়ন ও আধুনিক ফ্যাশনের অনন্য মেলবন্ধন।',
+      about_en: "A graceful blend of Bengal's rich heritage, authentic weaves and modern elegance.",
+      copyright_bn: '© {year} তূলিকা বুটিক। সর্বস্বত্ব সংরক্ষিত।',
+      copyright_en: '© {year} Tulika Boutique. All rights reserved.',
+      facebook_url: '',
+      instagram_url: '',
+      whatsapp_url: ''
+    }
+  },
+  design: {
+    primary_color: '#5A1B33',
+    secondary_color: '#1E6B58',
+    accent_color: '#D48C17',
+    page_bg_color: '#FDFBF7',
+    bg_color: '#FDFBF7',
+    text_color: '#241E20',
+    heading_font_size: 100,
+    body_font_size: 100,
+    btn_border_radius: 6,
+    btn_radius: 6,
+    card_border_radius: 12,
+    card_radius: 12,
+    content_max_width: 1240,
+    container_max_width: 1240,
+    section_spacing: 80
+  }
+};
 
 // Fallback seed data used ONLY when running with placeholder credentials
 const FALLBACK_SETTINGS = {
@@ -15,13 +252,14 @@ const FALLBACK_SETTINGS = {
   tagline_bn: 'ঐতিহ্য, শিল্প ও আধুনিক ফ্যাশনের অনন্য মেলবন্ধন',
   tagline_en: 'A graceful blend of heritage, craft and modern elegance',
   about_bn: 'তূলিকা একটি বিশ্বস্ত বুটিক যেখানে প্রতিটি শাড়ি ও পোশাক শৈল্পিক যত্ন এবং খাঁটি সুতো দিয়ে তৈরি করা হয়। আমাদের লক্ষ্য বাংলার সমৃদ্ধ বয়ন ঐতিহ্য ও আধুনিক ফ্যাশনের মেলবন্ধন ঘটিয়ে আপনার ব্যক্তিত্বকে অনন্য করে তোলা।',
-  about_en: 'Tulika is a bespoke boutique where every saree and outfit is crafted with artistic passion and pure fabrics. We celebrate Bengal''s rich weaving legacy alongside contemporary grace to make your style truly timeless.',
+  about_en: "Tulika is a bespoke boutique where every saree and outfit is crafted with artistic passion and pure fabrics. We celebrate Bengal's rich weaving legacy alongside contemporary grace to make your style truly timeless.",
   phone: '+91 98765 43210',
   whatsapp: WHATSAPP_PLACEHOLDER || '919876543210',
   address_bn: '১২, শ্যামাপ্রসাদ মুখার্জি রোড, ভবানীপুর, কলকাতা ৭০০০২৫',
   address_en: '12, Shyama Prasad Mukherjee Road, Bhowanipore, Kolkata 700025',
   hours_bn: 'সোম - শনি: সকাল ১১টা থেকে রাত ৮টা (রবিবার বন্ধ)',
-  hours_en: 'Mon - Sat: 11:00 AM to 8:00 PM (Sunday Closed)'
+  hours_en: 'Mon - Sat: 11:00 AM to 8:00 PM (Sunday Closed)',
+  customization: { ...DEFAULT_CUSTOMIZATION }
 };
 
 const FALLBACK_CATEGORIES = [
@@ -44,7 +282,10 @@ const FALLBACK_PRODUCTS = [
     is_featured: true,
     is_new: true,
     is_visible: true,
-    image_url: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><defs><linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%235A1B33"/><stop offset="100%" stop-color="%238C2647"/></linearGradient></defs><rect width="400" height="400" rx="16" fill="url(%23g1)"/><path d="M40 80 Q200 40 360 80 L360 320 Q200 360 40 320 Z" fill="none" stroke="%23E3A02B" stroke-width="3" opacity="0.4"/><circle cx="200" cy="180" r="70" fill="none" stroke="%23E3A02B" stroke-width="2"/><text x="200" y="185" fill="%23FFFFFF" font-size="22" font-family="sans-serif" font-weight="bold" text-anchor="middle">ঢাকাই জামদানি</text><text x="200" y="225" fill="%23E3A02B" font-size="14" font-family="sans-serif" text-anchor="middle">Pure Handloom Cotton</text></svg>'
+    image_url: 'assets/images/products/jamdani-saree.jpg',
+    fabric_type: '১০০% খাঁটি সুতি ও রূপোলি জরি (100% Cotton & Silver Zari)',
+    available_sizes: ['Free Size (5.5m + Blouse)'],
+    sku_code: 'TLK-JMD-01'
   },
   {
     id: 'p1000000-0000-0000-0000-000000000002',
@@ -58,7 +299,10 @@ const FALLBACK_PRODUCTS = [
     is_featured: true,
     is_new: false,
     is_visible: true,
-    image_url: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><defs><linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23381020"/><stop offset="100%" stop-color="%23681530"/></linearGradient></defs><rect width="400" height="400" rx="16" fill="url(%23g2)"/><rect x="50" y="50" width="300" height="300" rx="8" fill="none" stroke="%23E3A02B" stroke-dasharray="8 6" stroke-width="2"/><circle cx="200" cy="175" r="60" fill="%23E3A02B" opacity="0.15"/><text x="200" y="180" fill="%23FFFFFF" font-size="20" font-family="sans-serif" font-weight="bold" text-anchor="middle">বিষ্ণুপুরী সিল্ক</text><text x="200" y="215" fill="%23E3A02B" font-size="14" font-family="sans-serif" text-anchor="middle">Pure Katan Silk</text></svg>'
+    image_url: 'assets/images/products/bishnupuri-silk.jpg',
+    fabric_type: 'খাঁটি কাতান সিল্ক ও মিনাকারি (Pure Katan Silk & Minakari)',
+    available_sizes: ['Free Size (5.5m + Blouse)'],
+    sku_code: 'TLK-BSH-02'
   },
   {
     id: 'p1000000-0000-0000-0000-000000000003',
@@ -72,7 +316,10 @@ const FALLBACK_PRODUCTS = [
     is_featured: false,
     is_new: false,
     is_visible: true,
-    image_url: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><defs><linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%231E3B30"/><stop offset="100%" stop-color="%232D5948"/></linearGradient></defs><rect width="400" height="400" rx="16" fill="url(%23g3)"/><polygon points="200,60 340,320 60,320" fill="none" stroke="%23E3A02B" stroke-width="2" opacity="0.3"/><text x="200" y="195" fill="%23FFFFFF" font-size="20" font-family="sans-serif" font-weight="bold" text-anchor="middle">হাতে আঁকা লিনেন</text><text x="200" y="230" fill="%23E3A02B" font-size="14" font-family="sans-serif" text-anchor="middle">Organic Linen Art</text></svg>'
+    image_url: 'assets/images/products/linen-saree.jpg',
+    fabric_type: 'অর্গানিক হ্যান্ডলুম লিনেন (Organic Handloom Linen)',
+    available_sizes: ['Free Size (5.5m)'],
+    sku_code: 'TLK-LNN-03'
   },
   {
     id: 'p1000000-0000-0000-0000-000000000004',
@@ -86,7 +333,10 @@ const FALLBACK_PRODUCTS = [
     is_featured: true,
     is_new: true,
     is_visible: true,
-    image_url: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><defs><linearGradient id="g4" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%236B4226"/><stop offset="100%" stop-color="%239E6238"/></linearGradient></defs><rect width="400" height="400" rx="16" fill="url(%23g4)"/><circle cx="200" cy="180" r="80" fill="none" stroke="%23E3A02B" stroke-width="2"/><text x="200" y="185" fill="%23FFFFFF" font-size="22" font-family="sans-serif" font-weight="bold" text-anchor="middle">চান্দেরি আনারকলি</text><text x="200" y="220" fill="%23E3A02B" font-size="14" font-family="sans-serif" text-anchor="middle">Chanderi Kurti Set</text></svg>'
+    image_url: 'assets/images/products/chanderi-anarkali.jpg',
+    fabric_type: 'চান্দেরি কটন ও জরি এমব্রয়ডারি (Chanderi Cotton)',
+    available_sizes: ['S', 'M', 'L', 'XL'],
+    sku_code: 'TLK-KRT-04'
   },
   {
     id: 'p1000000-0000-0000-0000-000000000005',
@@ -100,7 +350,10 @@ const FALLBACK_PRODUCTS = [
     is_featured: false,
     is_new: true,
     is_visible: true,
-    image_url: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><defs><linearGradient id="g5" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%231E2B3E"/><stop offset="100%" stop-color="%232E4360"/></linearGradient></defs><rect width="400" height="400" rx="16" fill="url(%23g5)"/><rect x="60" y="60" width="280" height="280" rx="12" fill="none" stroke="%23E3A02B" stroke-width="2"/><text x="200" y="185" fill="%23FFFFFF" font-size="20" font-family="sans-serif" font-weight="bold" text-anchor="middle">কাঁথা স্টিচ কুর্তি</text><text x="200" y="220" fill="%23E3A02B" font-size="14" font-family="sans-serif" text-anchor="middle">Khadi Handcraft</text></svg>'
+    image_url: 'assets/images/products/kantha-kurti.jpg',
+    fabric_type: 'খাদি কটন ও হস্তশিল্প কাঁথা (Handspun Khadi Cotton)',
+    available_sizes: ['M', 'L', 'XL', 'XXL'],
+    sku_code: 'TLK-KRT-05'
   },
   {
     id: 'p1000000-0000-0000-0000-000000000006',
@@ -114,7 +367,10 @@ const FALLBACK_PRODUCTS = [
     is_featured: true,
     is_new: false,
     is_visible: true,
-    image_url: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><defs><linearGradient id="g6" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%23533827"/><stop offset="100%" stop-color="%237D563E"/></linearGradient></defs><rect width="400" height="400" rx="16" fill="url(%23g6)"/><ellipse cx="200" cy="180" rx="110" ry="70" fill="none" stroke="%23E3A02B" stroke-width="2"/><text x="200" y="185" fill="%23FFFFFF" font-size="20" font-family="sans-serif" font-weight="bold" text-anchor="middle">তসর সিল্ক ওড়না</text><text x="200" y="220" fill="%23E3A02B" font-size="14" font-family="sans-serif" text-anchor="middle">Wild Tussar Dupatta</text></svg>'
+    image_url: 'assets/images/products/tussar-dupatta.jpg',
+    fabric_type: 'বুনো সোনালী তসর সিল্ক (Wild Golden Tussar Silk)',
+    available_sizes: ['Free Size (2.5m)'],
+    sku_code: 'TLK-DPT-06'
   },
   {
     id: 'p1000000-0000-0000-0000-000000000007',
@@ -128,7 +384,10 @@ const FALLBACK_PRODUCTS = [
     is_featured: true,
     is_new: true,
     is_visible: true,
-    image_url: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><defs><linearGradient id="g7" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%234A3525"/><stop offset="100%" stop-color="%236E4F37"/></linearGradient></defs><rect width="400" height="400" rx="16" fill="url(%23g7)"/><circle cx="200" cy="150" r="45" fill="%23E3A02B" opacity="0.3"/><path d="M140 230 C 140 300, 260 300, 260 230" fill="none" stroke="%23E3A02B" stroke-width="4"/><text x="200" y="155" fill="%23FFFFFF" font-size="20" font-family="sans-serif" font-weight="bold" text-anchor="middle">ডোকরা গহনা সেট</text><text x="200" y="190" fill="%23E3A02B" font-size="14" font-family="sans-serif" text-anchor="middle">Dokra Art Jewellery</text></svg>'
+    image_url: 'assets/images/products/dokra-necklace.jpg',
+    fabric_type: 'হস্তনির্মিত বেল মেটাল ও ব্রাস (Lost-wax Bell Metal)',
+    available_sizes: ['Standard Adjustable'],
+    sku_code: 'TLK-DKR-07'
   },
   {
     id: 'p1000000-0000-0000-0000-000000000008',
@@ -142,7 +401,10 @@ const FALLBACK_PRODUCTS = [
     is_featured: false,
     is_new: false,
     is_visible: true,
-    image_url: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%"><defs><linearGradient id="g8" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%235C2B14"/><stop offset="100%" stop-color="%23873D1C"/></linearGradient></defs><rect width="400" height="400" rx="16" fill="url(%23g8)"/><circle cx="200" cy="160" r="50" fill="none" stroke="%23E3A02B" stroke-width="2"/><text x="200" y="165" fill="%23FFFFFF" font-size="20" font-family="sans-serif" font-weight="bold" text-anchor="middle">টেরাকোটা ঝুমকো</text><text x="200" y="200" fill="%23E3A02B" font-size="14" font-family="sans-serif" text-anchor="middle">Baked Terracotta Craft</text></svg>'
+    image_url: 'assets/images/products/terracotta-jhumka.jpg',
+    fabric_type: 'পোড়ামাটি ও প্রাকৃতিক রঞ্জক (Kiln-fired Clay)',
+    available_sizes: ['Standard'],
+    sku_code: 'TLK-JHM-08'
   }
 ];
 
@@ -153,7 +415,8 @@ const FALLBACK_REVIEWS = [
     rating: 5,
     comment_bn: 'ঢাকাই জামদানি শাড়ির গুণমান ও সুতোর বুনন অসাধারণ! হোয়াটসঅ্যাপে অর্ডার করার পরদিনই খুব সুন্দর প্যাকিং সহ ডেলিভারি পেয়েছি।',
     comment_en: 'The weave and drape of the Dhakai Jamdani is exceptional. Prompt WhatsApp response and beautifully packed delivery.',
-    is_visible: true
+    is_visible: true,
+    created_at: '2026-10-15T10:00:00.000Z'
   },
   {
     id: 'r1000000-0000-0000-0000-000000000002',
@@ -161,7 +424,8 @@ const FALLBACK_REVIEWS = [
     rating: 5,
     comment_bn: 'বিষ্ণুপুরী সিল্ক শাড়িটির আঁচলের কাজ চোখে পড়ার মতো। খাঁটি সিল্কের ঔজ্জ্বল্য সত্যিই মন ভরিয়ে দিয়েছে। তূলিকাকে অনেক শুভকামনা।',
     comment_en: 'The silk mark Bishnupuri saree is truly authentic. The minakari pallu drew so many compliments at our family gathering!',
-    is_visible: true
+    is_visible: true,
+    created_at: '2026-10-18T14:30:00.000Z'
   },
   {
     id: 'r1000000-0000-0000-0000-000000000003',
@@ -169,7 +433,8 @@ const FALLBACK_REVIEWS = [
     rating: 5,
     comment_bn: 'ডোকরা নেকলেস ও টেরাকোটা কানের সেটটি খুব সুন্দর। খাঁটি হস্তশিল্পের এমন সংগ্রহ আজকাল খুব কম পাওয়া যায়।',
     comment_en: 'The handcrafted Dokra piece is pure art. Wonderful customer service on WhatsApp and genuine craftsmanship.',
-    is_visible: true
+    is_visible: true,
+    created_at: '2026-10-22T09:15:00.000Z'
   }
 ];
 
@@ -184,23 +449,65 @@ let mockReviews = [...FALLBACK_REVIEWS];
 // ==============================================================================
 export async function getSettings() {
   const sb = getSupabase();
-  if (!sb) return mockSettings;
+  let baseSettings = { ...mockSettings };
+
+  try {
+    const localCustom = localStorage.getItem('tulika_customization');
+    if (localCustom) {
+      baseSettings.customization = deepMerge(DEFAULT_CUSTOMIZATION, JSON.parse(localCustom));
+    }
+  } catch (e) {}
+
+  if (!sb) return baseSettings;
 
   try {
     const { data, error } = await sb.from('settings').select('*').eq('id', 1).single();
     if (error) {
       console.warn('Could not fetch settings from Supabase, using defaults:', error.message);
-      return mockSettings;
+      return baseSettings;
     }
-    return data || mockSettings;
+    const merged = { ...baseSettings, ...(data || {}) };
+
+    // Check if remote customization contains actual customized keys (> 0 keys)
+    const remoteCustom =
+      data?.customization &&
+      typeof data.customization === 'object' &&
+      !Array.isArray(data.customization) &&
+      Object.keys(data.customization).length > 0
+        ? data.customization
+        : null;
+
+    if (remoteCustom) {
+      if (baseSettings.customization) {
+        // Local customizations saved in this browser take priority over remote (e.g. offline/demo/recent edits)
+        merged.customization = deepMerge(remoteCustom, baseSettings.customization);
+      } else {
+        merged.customization = deepMerge(DEFAULT_CUSTOMIZATION, remoteCustom);
+        try {
+          localStorage.setItem('tulika_customization', JSON.stringify(merged.customization));
+        } catch (e) {}
+      }
+    } else {
+      // Remote is empty {} — preserve saved local customization or defaults
+      merged.customization = baseSettings.customization || { ...DEFAULT_CUSTOMIZATION };
+    }
+
+    return merged;
   } catch (err) {
-    console.error('getSettings network error:', err);
-    throw new Error('সংযোগ ব্যর্থ — আবার চেষ্টা করুন');
+    console.warn('getSettings network error, falling back to local defaults:', err);
+    return baseSettings;
   }
 }
 
 export async function updateSettings(fields) {
   const sb = getSupabase();
+
+  if (fields.customization) {
+    try {
+      localStorage.setItem('tulika_customization', JSON.stringify(fields.customization));
+    } catch (e) {}
+  }
+
   if (!sb) {
     mockSettings = { ...mockSettings, ...fields };
     return mockSettings;
@@ -214,11 +521,17 @@ export async function updateSettings(fields) {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.warn('Supabase updateSettings warning:', error.message);
+      mockSettings = { ...mockSettings, ...fields };
+      return mockSettings;
+    }
+    mockSettings = { ...mockSettings, ...(data || {}) };
     return data;
   } catch (err) {
-    console.error('updateSettings error:', err);
-    throw err;
+    console.warn('updateSettings network error, persisted locally:', err);
+    mockSettings = { ...mockSettings, ...fields };
+    return mockSettings;
   }
 }
 
@@ -351,6 +664,36 @@ export async function reorderCategories(orderedIds) {
 // ==============================================================================
 // PRODUCTS
 // ==============================================================================
+function getMockProductsFiltered({
+  categoryId = null,
+  search = '',
+  includeHidden = false,
+  page = 1,
+  limit = 50
+} = {}) {
+  let list = mockProducts.map(normalizeProduct);
+  if (!includeHidden) {
+    list = list.filter((p) => p.is_visible);
+  }
+  if (categoryId && categoryId !== 'all') {
+    list = list.filter((p) => p.category_id === categoryId);
+  }
+  if (search.trim()) {
+    const q = search.trim().toLowerCase();
+    list = list.filter(
+      (p) =>
+        p.name_bn.toLowerCase().includes(q) ||
+        p.name_en.toLowerCase().includes(q) ||
+        (p.description_bn && p.description_bn.toLowerCase().includes(q)) ||
+        (p.description_en && p.description_en.toLowerCase().includes(q))
+    );
+  }
+  const total = list.length;
+  const start = (page - 1) * limit;
+  const paginated = list.slice(start, start + limit);
+  return { data: paginated, count: total };
+}
+
 export async function getProducts({
   categoryId = null,
   search = '',
@@ -360,27 +703,7 @@ export async function getProducts({
 } = {}) {
   const sb = getSupabase();
   if (!sb) {
-    let list = [...mockProducts];
-    if (!includeHidden) {
-      list = list.filter((p) => p.is_visible);
-    }
-    if (categoryId && categoryId !== 'all') {
-      list = list.filter((p) => p.category_id === categoryId);
-    }
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      list = list.filter(
-        (p) =>
-          p.name_bn.toLowerCase().includes(q) ||
-          p.name_en.toLowerCase().includes(q) ||
-          (p.description_bn && p.description_bn.toLowerCase().includes(q)) ||
-          (p.description_en && p.description_en.toLowerCase().includes(q))
-      );
-    }
-    const total = list.length;
-    const start = (page - 1) * limit;
-    const paginated = list.slice(start, start + limit);
-    return { data: paginated, count: total };
+    return getMockProductsFiltered({ categoryId, search, includeHidden, page, limit });
   }
 
   try {
@@ -408,11 +731,18 @@ export async function getProducts({
     query = query.range(from, to);
 
     const { data, count, error } = await query;
-    if (error) throw error;
-    return { data: data || [], count: count || 0 };
+    if (error) {
+      console.warn('Supabase query error, falling back to local demo products:', error.message);
+      return getMockProductsFiltered({ categoryId, search, includeHidden, page, limit });
+    }
+    if (!data || data.length === 0) {
+      return getMockProductsFiltered({ categoryId, search, includeHidden, page, limit });
+    }
+    const normalized = (data || []).map(normalizeProduct);
+    return { data: normalized, count: count || normalized.length };
   } catch (err) {
-    console.error('getProducts error:', err);
-    throw new Error('সংযোগ ব্যর্থ — আবার চেষ্টা করুন');
+    console.warn('Network error reaching Supabase, falling back to local demo products:', err);
+    return getMockProductsFiltered({ categoryId, search, includeHidden, page, limit });
   }
 }
 
@@ -551,16 +881,28 @@ export async function processAndUploadImage(file) {
       // Drawing to canvas naturally discards EXIF orientation & metadata
       ctx.drawImage(img, 0, 0, width, height);
 
+      // Export as high-efficiency WebP (0.85 quality)
       canvas.toBlob(
         (blob) => {
           if (!blob) {
-            reject(new Error('ইমেজ প্রসেসিং ব্যর্থ হয়েছে'));
+            // Fallback to JPEG if browser doesn't support canvas WebP export
+            canvas.toBlob(
+              (jpgBlob) => {
+                if (!jpgBlob) {
+                  reject(new Error('ইমেজ প্রসেসিং ব্যর্থ হয়েছে'));
+                  return;
+                }
+                resolve(jpgBlob);
+              },
+              'image/jpeg',
+              0.85
+            );
             return;
           }
           resolve(blob);
         },
-        'image/jpeg',
-        0.8
+        'image/webp',
+        0.85
       );
     };
 
@@ -582,17 +924,21 @@ export async function processAndUploadImage(file) {
     });
   }
 
-  // Step B: Upload to Supabase Storage
+  // Step B: Upload to Supabase Storage with 1-Year CDN Cache
   try {
+    const isWebP = resizedBlob.type === 'image/webp';
+    const ext = isWebP ? 'webp' : 'jpg';
+    const contentType = isWebP ? 'image/webp' : 'image/jpeg';
     const safeName = file.name
       .replace(/[^a-zA-Z0-9._-]/g, '')
       .replace(/\.[^/.]+$/, '');
-    const fileName = `prod_${Date.now()}_${safeName || 'photo'}.jpg`;
+    const fileName = `prod_${Date.now()}_${safeName || 'photo'}.${ext}`;
 
     const { data, error } = await sb.storage
       .from('product-images')
       .upload(fileName, resizedBlob, {
-        contentType: 'image/jpeg',
+        contentType,
+        cacheControl: '31536000', // 1-year browser & edge CDN cache
         upsert: false
       });
 
@@ -780,62 +1126,338 @@ export async function deleteReview(id) {
   }
 }
 
-// ==============================================================================
-// AUTHENTICATION & ADMIN VERIFICATION
-// ==============================================================================
-export async function signIn(email, password) {
+/**
+ * Formats a review ISO date string for display (bilingual support)
+ */
+export function formatReviewDate(dateStr, lang = 'bn') {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString(lang === 'bn' ? 'bn-IN' : 'en-IN', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch (e) {
+    return '';
+  }
+}
+
+/**
+ * Public Customer Review Submission
+ * Enforces is_visible: false so reviews remain pending admin moderation
+ */
+export async function submitCustomerReview({ author_name, rating, comment }) {
   const sb = getSupabase();
-  if (!sb) {
-    throw new Error('Supabase কনফিগারেশন করা হয়নি। অনুগ্রহ করে js/config.js আপডেট করুন।');
+  const lang = getCurrentLang();
+  const isBn = lang === 'bn';
+
+  const cleanName = (author_name || '').trim();
+  const cleanRating = parseInt(rating, 10);
+  const cleanComment = (comment || '').trim();
+
+  if (!cleanName) {
+    throw new Error(isBn ? t('reviewValidationError') || 'আপনার নাম লিখুন' : 'Please enter your name');
+  }
+  if (!cleanRating || cleanRating < 1 || cleanRating > 5) {
+    throw new Error(isBn ? '১ থেকে ৫ এর মধ্যে রেটিং দিন' : 'Please select a rating between 1 and 5');
+  }
+  if (!cleanComment) {
+    throw new Error(isBn ? t('reviewValidationError') || 'আপনার রিভিউ মন্তব্য লিখুন' : 'Please write your review comment');
   }
 
-  const { data, error } = await sb.auth.signInWithPassword({
+  // Populate comment_bn (required by NOT NULL constraint)
+  // Mirror to comment_en if submitted in English mode
+  const payload = {
+    author_name: cleanName,
+    rating: cleanRating,
+    comment_bn: cleanComment,
+    comment_en: isBn ? '' : cleanComment,
+    is_visible: false
+  };
+
+  if (!sb) {
+    // In mock/preview mode, add to local mockReviews as unapproved
+    const mockRev = {
+      id: 'mock-rev-' + Date.now(),
+      created_at: new Date().toISOString(),
+      ...payload
+    };
+    mockReviews.unshift(mockRev);
+    return { success: true, pending: true, data: mockRev };
+  }
+
+  try {
+    // Do not chain .select() because unapproved reviews are hidden from public SELECT by RLS
+    const { error } = await sb.from('reviews').insert([payload]);
+    if (error) throw error;
+    return { success: true, pending: true };
+  } catch (err) {
+    console.error('submitCustomerReview error:', err);
+    throw err;
+  }
+}
+
+// ==============================================================================
+// AUTHENTICATION & ADMIN VERIFICATION (WITH TIMEOUT & RESILIENCE)
+// ==============================================================================
+
+/**
+ * Wraps any promise with an explicit timeout.
+ * Rejects with a custom TimeoutError if the promise does not settle within `timeoutMs`.
+ */
+export function withTimeout(promise, timeoutMs = 12000, timeoutMessage = 'Request timed out') {
+  return new Promise((resolve, reject) => {
+    let timer = setTimeout(() => {
+      timer = null;
+      const err = new Error(timeoutMessage);
+      err.name = 'TimeoutError';
+      err.code = 'AUTH_TIMEOUT';
+      reject(err);
+    }, timeoutMs);
+
+    Promise.resolve(promise)
+      .then((res) => {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        resolve(res);
+      })
+      .catch((err) => {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+        reject(err);
+      });
+  });
+}
+
+export async function signIn(email, password, timeoutMs = 30000) {
+  const t0 = performance.now();
+  console.log('[Auth Stage 1] Initializing Supabase client for password authentication...');
+  const sb = getSupabase();
+  if (!sb) {
+    const isBn = getCurrentLang() === 'bn';
+    const err = new Error(isBn ? t('authConfigError') : 'Supabase is not configured properly. Check js/config.js.');
+    err.name = 'ConfigError';
+    throw err;
+  }
+
+  const isBn = getCurrentLang() === 'bn';
+  const timeoutMsg = isBn ? t('authTimeout') : 'Authentication timed out: The server did not respond in time.';
+
+  console.log(`[Auth Stage 2] Sending signInWithPassword request to Supabase Auth endpoint (timeout: ${timeoutMs / 1000}s)...`);
+  const authPromise = sb.auth.signInWithPassword({
     email,
     password
   });
+
+  try {
+    const { data, error } = await withTimeout(authPromise, timeoutMs, timeoutMsg);
+    const duration = Math.round(performance.now() - t0);
+    console.log(`[Auth Stage 3] signInWithPassword completed in ${duration}ms:`, {
+      hasUser: Boolean(data?.user),
+      hasSession: Boolean(data?.session),
+      errorCode: error?.status || error?.code
+    });
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    const duration = Math.round(performance.now() - t0);
+    console.error(`[Auth Stage Error] Authentication failed after ${duration}ms:`, {
+      name: err.name,
+      message: err.message,
+      status: err.status || err.code
+    });
+    throw err;
+  }
+}
+
+export async function signInWithOtp(email, timeoutMs = 15000) {
+  const sb = getSupabase();
+  if (!sb) {
+    const isBn = getCurrentLang() === 'bn';
+    const err = new Error(isBn ? t('authConfigError') : 'Supabase is not configured properly. Check js/config.js.');
+    err.name = 'ConfigError';
+    throw err;
+  }
+
+  const isBn = getCurrentLang() === 'bn';
+  const timeoutMsg = isBn ? t('authTimeout') : 'Authentication timed out. Please check your network and try again.';
+
+  const authPromise = sb.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: window.location.href.split('#')[0],
+      shouldCreateUser: false
+    }
+  });
+
+  const { data, error } = await withTimeout(authPromise, timeoutMs, timeoutMsg);
+  if (error) throw error;
+  return data;
+}
+
+export async function verifyOtp(email, token, timeoutMs = 15000) {
+  const sb = getSupabase();
+  if (!sb) {
+    const isBn = getCurrentLang() === 'bn';
+    const err = new Error(isBn ? t('authConfigError') : 'Supabase is not configured properly. Check js/config.js.');
+    err.name = 'ConfigError';
+    throw err;
+  }
+
+  const isBn = getCurrentLang() === 'bn';
+  const timeoutMsg = isBn ? t('authTimeout') : 'Authentication timed out. Please check your network and try again.';
+
+  // Attempt verification with type: 'email' first
+  let { data, error } = await withTimeout(
+    sb.auth.verifyOtp({
+      email,
+      token,
+      type: 'email'
+    }),
+    timeoutMs,
+    timeoutMsg
+  );
+
+  // If token type mismatch (e.g. magiclink token vs email otp token), fall back to magiclink
+  if (error && (String(error.message || '').toLowerCase().includes('token_type') || String(error.message || '').toLowerCase().includes('magiclink'))) {
+    try {
+      const fallback = await withTimeout(
+        sb.auth.verifyOtp({
+          email,
+          token,
+          type: 'magiclink'
+        }),
+        timeoutMs,
+        timeoutMsg
+      );
+      if (!fallback.error) {
+        data = fallback.data;
+        error = null;
+      }
+    } catch (_) {
+      // Keep initial error if fallback also throws
+    }
+  }
 
   if (error) throw error;
   return data;
 }
 
-export async function signOut() {
+export async function signOut(timeoutMs = 6000) {
   const sb = getSupabase();
   if (!sb) return true;
-  const { error } = await sb.auth.signOut();
-  if (error) throw error;
+  try {
+    await withTimeout(sb.auth.signOut(), timeoutMs, 'Sign out timed out');
+  } catch (e) {
+    console.warn('signOut warning:', e);
+  }
   return true;
 }
 
-export async function getSession() {
+export async function getSession(timeoutMs = 8000) {
   const sb = getSupabase();
   if (!sb) return null;
-  const { data } = await sb.auth.getSession();
-  return data?.session || null;
+  try {
+    const { data } = await withTimeout(sb.auth.getSession(), timeoutMs, 'Session check timed out');
+    return data?.session || null;
+  } catch (e) {
+    console.warn('getSession warning:', e);
+    return null;
+  }
+}
+
+let lastAdminCheckError = null;
+
+export function getLastAdminCheckError() {
+  return lastAdminCheckError;
 }
 
 /**
  * Validates whether the authenticated user has a registered row in public.admins
  */
-export async function checkIsAdmin(user) {
-  if (!user || !user.id) return false;
+export async function checkIsAdmin(user, timeoutMs = 20000) {
+  lastAdminCheckError = null;
+  if (!user || !user.id) {
+    console.warn('[checkIsAdmin] No user or user.id provided:', user);
+    return false;
+  }
   const sb = getSupabase();
-  if (!sb) return false;
+  if (!sb) {
+    lastAdminCheckError = new Error('Supabase client is not configured');
+    return false;
+  }
 
+  const isBn = getCurrentLang() === 'bn';
+  const timeoutMsg = isBn ? 'অ্যাডমিন স্ট্যাটাস যাচাই সময়সীমা উত্তীর্ণ' : 'Admin check timed out';
+
+  // Diagnostic: Inspect authenticated session state on Supabase client
   try {
-    const { data, error } = await sb
+    const { data: sessionData, error: sessionErr } = await sb.auth.getSession();
+    const session = sessionData?.session;
+    console.log('[checkIsAdmin] Diagnostic session inspection:', {
+      hasSession: Boolean(session),
+      sessionUserId: session?.user?.id,
+      targetUserId: user.id,
+      idsMatch: session?.user?.id === user.id,
+      hasAccessToken: Boolean(session?.access_token),
+      tokenLength: session?.access_token ? session.access_token.length : 0,
+      sessionError: sessionErr ? sessionErr.message : null
+    });
+  } catch (diagErr) {
+    console.warn('[checkIsAdmin] Diagnostic getSession error:', diagErr.message);
+  }
+
+  // Strategy 1: Try dedicated RPC helper is_current_user_admin()
+  const rpcStart = performance.now();
+  try {
+    console.log('[checkIsAdmin] Strategy 1: Calling sb.rpc("is_current_user_admin")...');
+    const rpcPromise = sb.rpc('is_current_user_admin');
+    const { data: rpcIsAdmin, error: rpcError } = await withTimeout(rpcPromise, 6000, 'RPC check timeout');
+    const rpcDuration = Math.round(performance.now() - rpcStart);
+    console.log(`[checkIsAdmin] Strategy 1 RPC response (${rpcDuration}ms):`, { rpcIsAdmin, error: rpcError });
+
+    if (!rpcError && typeof rpcIsAdmin === 'boolean') {
+      return rpcIsAdmin;
+    }
+    if (rpcError) {
+      console.warn('[checkIsAdmin] Strategy 1 RPC returned error:', rpcError);
+    }
+  } catch (rpcEx) {
+    const rpcDuration = Math.round(performance.now() - rpcStart);
+    console.warn(`[checkIsAdmin] Strategy 1 RPC exception (${rpcDuration}ms):`, rpcEx.message);
+  }
+
+  // Strategy 2: Direct query on public.admins matching auth.uid() = user_id
+  const tableStart = performance.now();
+  try {
+    console.log(`[checkIsAdmin] Strategy 2: Querying public.admins for user_id = ${user.id}...`);
+    const checkPromise = sb
       .from('admins')
       .select('user_id')
       .eq('user_id', user.id)
       .maybeSingle();
 
+    const { data, error } = await withTimeout(checkPromise, timeoutMs, timeoutMsg);
+    const tableDuration = Math.round(performance.now() - tableStart);
+    console.log(`[checkIsAdmin] Strategy 2 Table query response (${tableDuration}ms):`, { data, error });
+
     if (error) {
-      console.warn('Admin check error:', error.message);
+      console.error('[checkIsAdmin] Strategy 2 error from Supabase:', error);
+      lastAdminCheckError = error;
       return false;
     }
 
     return Boolean(data && data.user_id === user.id);
   } catch (err) {
-    console.error('checkIsAdmin error:', err);
+    const tableDuration = Math.round(performance.now() - tableStart);
+    console.error(`[checkIsAdmin] Strategy 2 exception (${tableDuration}ms):`, err.message);
+    lastAdminCheckError = err;
     return false;
   }
 }

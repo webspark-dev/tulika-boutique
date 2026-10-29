@@ -39,9 +39,18 @@ CREATE TABLE IF NOT EXISTS public.products (
   is_new BOOLEAN NOT NULL DEFAULT false,
   is_visible BOOLEAN NOT NULL DEFAULT true,
   image_url TEXT DEFAULT '',
+  fabric_type TEXT NOT NULL DEFAULT 'Pure Handloom',
+  available_sizes TEXT[] NOT NULL DEFAULT '{"Free Size"}',
+  sku_code TEXT DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Luxury Fashion E-Commerce Attributes Migration (Safe idempotent addition)
+ALTER TABLE public.products
+  ADD COLUMN IF NOT EXISTS fabric_type TEXT NOT NULL DEFAULT 'Pure Handloom',
+  ADD COLUMN IF NOT EXISTS available_sizes TEXT[] NOT NULL DEFAULT '{"Free Size"}',
+  ADD COLUMN IF NOT EXISTS sku_code TEXT DEFAULT '';
 
 -- Indexes for high-performance querying
 CREATE INDEX IF NOT EXISTS idx_products_category_id ON public.products(category_id);
@@ -81,8 +90,13 @@ CREATE TABLE IF NOT EXISTS public.settings (
   address_en TEXT NOT NULL DEFAULT '12, Shyama Prasad Mukherjee Road, Bhowanipore, Kolkata 700025',
   hours_bn TEXT NOT NULL DEFAULT 'সোম - শনি: সকাল ১১টা থেকে রাত ৮টা (রবিবার বন্ধ)',
   hours_en TEXT NOT NULL DEFAULT 'Mon - Sat: 11:00 AM to 8:00 PM (Sunday Closed)',
+  customization JSONB NOT NULL DEFAULT '{}'::jsonb,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Idempotent column addition for existing databases
+ALTER TABLE public.settings
+  ADD COLUMN IF NOT EXISTS customization JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 -- Trigger for settings updated_at
 DROP TRIGGER IF EXISTS tr_settings_updated_at ON public.settings;
@@ -181,18 +195,36 @@ CREATE POLICY "Admins can manage settings"
   WITH CHECK (public.is_admin());
 
 -- Admins table policies (NO anonymous SELECT allowed!)
+-- Non-recursive policy architecture:
+-- For SELECT: Directly match auth.uid() = user_id without calling is_admin() to prevent infinite recursion
 DROP POLICY IF EXISTS "Authenticated can check admin row" ON public.admins;
-CREATE POLICY "Authenticated can check admin row"
+DROP POLICY IF EXISTS "Admins can manage admins" ON public.admins;
+DROP POLICY IF EXISTS "Allow authenticated user to read own admin row" ON public.admins;
+DROP POLICY IF EXISTS "Admins can insert admins" ON public.admins;
+DROP POLICY IF EXISTS "Admins can update admins" ON public.admins;
+DROP POLICY IF EXISTS "Admins can delete admins" ON public.admins;
+
+CREATE POLICY "Allow authenticated user to read own admin row"
   ON public.admins FOR SELECT
   TO authenticated
-  USING (auth.uid() = user_id OR public.is_admin());
+  USING (auth.uid() = user_id);
 
-DROP POLICY IF EXISTS "Admins can manage admins" ON public.admins;
-CREATE POLICY "Admins can manage admins"
-  ON public.admins FOR ALL
+-- Separate write policies (INSERT, UPDATE, DELETE) so is_admin() is NEVER evaluated during a SELECT on admins
+CREATE POLICY "Admins can insert admins"
+  ON public.admins FOR INSERT
+  TO authenticated
+  WITH CHECK (public.is_admin());
+
+CREATE POLICY "Admins can update admins"
+  ON public.admins FOR UPDATE
   TO authenticated
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
+
+CREATE POLICY "Admins can delete admins"
+  ON public.admins FOR DELETE
+  TO authenticated
+  USING (public.is_admin());
 
 -- ==============================================================================
 -- STORAGE BUCKET: product-images
@@ -204,12 +236,12 @@ VALUES (
   'product-images',
   true,
   5242880,
-  ARRAY['image/jpeg', 'image/png', 'image/webp']
+  ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']
 )
 ON CONFLICT (id) DO UPDATE SET
   public = true,
   file_size_limit = 5242880,
-  allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp'];
+  allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
 
 -- Storage RLS policies
 DROP POLICY IF EXISTS "Public can read product images" ON storage.objects;

@@ -23,22 +23,43 @@
 
   <!-- Stylesheet -->
   <link rel="stylesheet" href="css/style.css">
+
+  <!-- Immediate Theme Application to prevent FOIT (Flash of Incorrect Theme) -->
+  <script>
+    (function() {
+      try {
+        const saved = localStorage.getItem('tulika_theme');
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = (saved === 'dark' || saved === 'light') ? saved : (prefersDark ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <!-- Header / Nav -->
   <header class="site-header">
     <div class="wrap header-inner">
-      <a href="index.html" class="brand-link" aria-label="তূলিকা হোমপেজ">
-        <svg class="brand-logo-svg" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <a href="index.html" class="brand-link" id="store-brand-link" aria-label="তূলিকা হোমপেজ">
+        <img id="store-logo-img" class="store-logo-img" src="" alt="তূলিকা লোগো" style="display: none;">
+        <svg id="store-default-logo-svg" class="brand-logo-svg" viewBox="0 0 48 48" fill="none" aria-hidden="true">
           <rect width="48" height="48" rx="12" fill="#5A1B33"/>
           <path d="M15 33 C18 22, 30 22, 33 15 C30 25, 18 25, 15 33 Z" fill="#E3A02B"/>
           <circle cx="34.5" cy="13.5" r="3" fill="#E3A02B"/>
         </svg>
-        <div class="brand-text">
+        <div class="brand-text" id="store-brand-text">
           <h1 id="store-brand-name">তূলিকা</h1>
           <p id="store-brand-tagline">বুটিক ও হস্তশিল্প</p>
         </div>
       </a>
+
+      <!-- Desktop Navigation Links -->
+      <nav class="site-nav" id="site-nav" aria-label="Main Navigation">
+        <a href="#collection" class="nav-link" data-i18n="navCollection">সম্ভার</a>
+        <a href="#about" class="nav-link" data-i18n="navAbout">আমাদের কথা</a>
+        <a href="#reviews" class="nav-link" data-i18n="navReviews">রিভিউ</a>
+        <a href="#contact" class="nav-link" data-i18n="navContact">যোগাযোগ</a>
+      </nav>
 
       <div class="header-actions">
         <!-- Theme Toggle -->
@@ -48,6 +69,40 @@
 
         <!-- Language Switcher -->
         <button id="lang-toggle-btn" class="pill-btn" data-lang-toggle aria-label="Switch language">
+          English
+        </button>
+
+        <!-- Mobile Navigation Menu Toggle -->
+        <button id="mobile-menu-btn" class="mobile-menu-toggle" aria-label="মেনু খুলুন" aria-expanded="false" aria-controls="mobile-nav-drawer">
+          <svg class="icon-menu" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+          <svg class="icon-close" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="display: none;">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Navigation Drawer -->
+    <div id="mobile-nav-drawer" class="mobile-nav-drawer" aria-hidden="true">
+      <nav class="mobile-nav-links" id="mobile-nav-links">
+        <a href="#collection" class="mobile-nav-link" data-i18n="navCollection">আমাদের সম্ভার</a>
+        <a href="#about" class="mobile-nav-link" data-i18n="navAbout">আমাদের কথা</a>
+        <a href="#reviews" class="mobile-nav-link" data-i18n="navReviews">গ্রাহকদের রিভিউ</a>
+        <a href="#contact" class="mobile-nav-link" data-i18n="navContact">যোগাযোগ ও ঠিকানা</a>
+        <a href="admin.html" class="mobile-nav-link admin-link" data-i18n="adminLogin">অ্যাডমিন লগইন</a>
+      </nav>
+
+      <!-- Mobile Drawer Controls for Theme & Language -->
+      <div class="mobile-drawer-controls">
+        <button id="mobile-theme-toggle-btn" class="pill-btn" aria-label="Toggle theme">
+          <span id="mobile-theme-btn-text">🌓 থিম</span>
+        </button>
+        <button id="mobile-lang-toggle-btn" class="pill-btn" data-lang-toggle aria-label="Switch language">
           English
         </button>
       </div>
@@ -60,21 +115,21 @@
   <!-- Main Content -->
   <main id="main-content">
     <!-- Hero Section -->
-    <section class="hero" aria-labelledby="hero-title">
+    <section class="hero reveal-on-scroll" id="hero-section" aria-labelledby="hero-title">
       <div class="wrap hero-grid">
         <div class="hero-content">
-          <p class="eyebrow" data-i18n="tagline">ঐতিহ্য, শিল্প ও আধুনিক ফ্যাশনের অনন্য মেলবন্ধন</p>
+          <p class="eyebrow" id="hero-eyebrow-text" data-i18n="tagline">ঐতিহ্য, শিল্প ও আধুনিক ফ্যাশনের অনন্য মেলবন্ধন</p>
           <h2 id="hero-title" data-i18n="heroHeadline">বাংলার ঐতিহ্যবাহী বয়ন ও আধুনিক রূপ</h2>
           <p class="hero-tagline" id="hero-tagline-text" data-i18n="heroSubhead">
             হাতে বোনা খাঁটি জামদানি, তসর সিল্ক, কাঁথা স্টিচ ও পোড়ামাটির গহনার অনন্য সংগ্রহ। সরাসরি হোয়াটসঅ্যাপে দ্রুত অর্ডার করুন।
           </p>
           <div class="hero-ctas">
-            <a href="#collection" class="btn btn-secondary" data-i18n="exploreCollection">সংগ্রহ দেখুন</a>
-            <a id="hero-wa-btn" href="#" class="btn btn-primary" target="_blank" rel="noopener" data-i18n="orderOnWhatsApp">
+            <a href="#collection" class="btn btn-secondary" id="hero-explore-btn" data-i18n="exploreCollection">সংগ্রহ দেখুন</a>
+            <a id="hero-wa-btn" href="#" class="btn btn-primary" target="_blank" rel="noopener">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
                 <path d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.5 0 .2 5.3.2 11.9c0 2.1.6 4.2 1.6 6L0 24l6.3-1.7a12 12 0 0 0 5.8 1.5h.1c6.6 0 11.9-5.3 11.9-11.9 0-3.2-1.3-6.2-3.6-8.4ZM12.1 21.8c-1.8 0-3.6-.5-5.1-1.4l-.4-.2-3.7 1 1-3.6-.2-.4a9.7 9.7 0 1 1 8.4 4.6Zm5.3-7.3c-.3-.2-1.8-.9-2.1-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.3.2-.6.1-.3-.2-1.3-.5-2.5-1.6-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6l.5-.6.3-.5c.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1.1 1.1-1.1 2.7s1.1 3.1 1.3 3.3c.1.2 2.2 3.4 5.4 4.8.8.3 1.4.5 1.9.6.8.2 1.5.2 2 .1.6-.1 1.8-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.2-.3-.3-.6-.4Z"/>
               </svg>
-              <span>হোয়াটসঅ্যাপে অর্ডার করুন</span>
+              <span data-i18n="orderOnWhatsApp">হোয়াটসঅ্যাপে অর্ডার করুন</span>
             </a>
           </div>
         </div>
@@ -101,32 +156,52 @@
     </section>
 
     <!-- Collection Section -->
-    <section id="collection" class="section-collection" aria-labelledby="collection-title">
+    <section id="collection" class="section-collection reveal-on-scroll" aria-labelledby="collection-title">
       <div class="wrap">
         <div class="section-head">
-          <p class="eyebrow" data-i18n="featured">সেরা পছন্দ</p>
+          <p class="eyebrow" id="collection-eyebrow" data-i18n="featured">সেরা পছন্দ</p>
           <h2 id="collection-title" data-i18n="collectionHeading">আমাদের সম্ভার</h2>
-          <p data-i18n="collectionSubhead">কারিগরদের নিপুণ হাতে তৈরি সেরা শাড়ি ও পোশাকের সমাহার</p>
+          <p id="collection-subtitle" data-i18n="collectionSubhead">কারিগরদের নিপুণ হাতে তৈরি সেরা শাড়ি ও পোশাকের সমাহার</p>
         </div>
 
-        <!-- Controls: Tabs + Search -->
+        <!-- Controls: Tabs + Filter Actions + Search -->
         <div class="collection-controls">
           <div class="category-tabs" id="category-tablist" role="tablist" aria-label="পণ্য বিভাগ">
             <!-- Tabs rendered dynamically -->
           </div>
 
-          <div class="search-box">
-            <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <input
-              type="search"
-              id="product-search-input"
-              placeholder="পণ্য বা বিভাগের নাম খুঁজুন..."
-              data-i18n-placeholder="searchPlaceholder"
-              aria-label="পণ্য অনুসন্ধান"
-            >
+          <div class="collection-filter-actions">
+            <!-- Search Input -->
+            <div class="search-box">
+              <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input
+                type="search"
+                id="product-search-input"
+                placeholder="পণ্য বা বিভাগের নাম খুঁজুন..."
+                data-i18n-placeholder="searchPlaceholder"
+                aria-label="পণ্য অনুসন্ধান"
+              >
+            </div>
+
+            <div class="filter-controls-group">
+              <!-- In-Stock Only Quick Filter -->
+              <label class="instock-filter-toggle" for="filter-instock-only" title="শুধু স্টকে থাকা পণ্য দেখুন" data-i18n-title="inStockTitle">
+                <input type="checkbox" id="filter-instock-only">
+                <span data-i18n="inStockOnly">শুধু স্টকে আছে</span>
+              </label>
+
+              <!-- Price & Recency Sort -->
+              <div class="sort-select-wrapper">
+                <select id="product-sort-select" class="sort-select" aria-label="সর্ট করুন">
+                  <option value="newest" data-i18n="sortNewest">নতুন আগমন (Newest First)</option>
+                  <option value="price-asc" data-i18n="sortPriceAsc">মূল্য: কম থেকে বেশি (Low to High)</option>
+                  <option value="price-desc" data-i18n="sortPriceDesc">মূল্য: বেশি থেকে কম (High to Low)</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -138,7 +213,7 @@
     </section>
 
     <!-- About Section -->
-    <section id="about" class="section-about" aria-labelledby="about-title">
+    <section id="about" class="section-about reveal-on-scroll" aria-labelledby="about-title">
       <div class="wrap about-grid">
         <div class="about-text">
           <p class="eyebrow" data-i18n="aboutHeading">আমাদের কথা</p>
@@ -153,8 +228,8 @@
                 <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
               </svg>
               <div>
-                <strong>১০০% খাঁটি বয়ন</strong>
-                <span>সরাসরি তাঁতিদের হাত থেকে সংগৃহীত</span>
+                <strong data-i18n="featurePureWeave">১০০% খাঁটি বয়ন</strong>
+                <span data-i18n="featurePureWeaveSub">সরাসরি তাঁতিদের হাত থেকে সংগৃহীত</span>
               </div>
             </div>
             <div class="feature-item">
@@ -163,8 +238,8 @@
                 <circle cx="12" cy="10" r="3"></circle>
               </svg>
               <div>
-                <strong>কলকাতায় অবস্থিত</strong>
-                <span>সরাসরি শপে এসে পরখ করে নেওয়ার সুযোগ</span>
+                <strong data-i18n="featureKolkata">কলকাতায় অবস্থিত</strong>
+                <span data-i18n="featureKolkataSub">সরাসরি শপে এসে পরখ করে নেওয়ার সুযোগ</span>
               </div>
             </div>
           </div>
@@ -182,11 +257,17 @@
     </section>
 
     <!-- Reviews Section -->
-    <section id="reviews" class="section-reviews" aria-labelledby="reviews-title">
+    <section id="reviews" class="section-reviews reveal-on-scroll" aria-labelledby="reviews-title">
       <div class="wrap">
-        <div class="section-head">
-          <p class="eyebrow" data-i18n="reviewsHeading">গ্রাহকদের মতামত</p>
-          <h2 id="reviews-title" data-i18n="reviewsSubhead">আমাদের সন্তুষ্ট গ্রাহকদের কিছু মূল্যবান অভিজ্ঞতা</h2>
+        <div class="reviews-header-wrap">
+          <div class="section-head" style="margin-bottom: 0;">
+            <p class="eyebrow" data-i18n="reviewsHeading">গ্রাহকদের মতামত</p>
+            <h2 id="reviews-title" data-i18n="reviewsSubhead">আমাদের সন্তুষ্ট গ্রাহকদের কিছু মূল্যবান অভিজ্ঞতা</h2>
+          </div>
+          <button id="btn-open-review-modal" class="pill-btn btn-write-review" type="button">
+            <span class="btn-icon" aria-hidden="true">✍️</span>
+            <span data-i18n="writeReviewBtn">মতামত জানান</span>
+          </button>
         </div>
 
         <div id="reviews-grid" class="review-grid">
@@ -196,7 +277,7 @@
     </section>
 
     <!-- Contact Section -->
-    <section id="contact" class="section-contact" aria-labelledby="contact-title">
+    <section id="contact" class="section-contact reveal-on-scroll" aria-labelledby="contact-title">
       <div class="wrap">
         <div class="section-head">
           <p class="eyebrow" data-i18n="contactHeading">যোগাযোগ ও ঠিকানা</p>
@@ -258,9 +339,10 @@
   </a>
 
   <!-- Footer -->
-  <footer class="site-footer">
+  <footer class="site-footer" id="site-footer">
     <div class="wrap footer-inner">
-      <p class="footer-copy">&copy; 2026 তূলিকা বুটিক (Tulika Boutique). All rights reserved.</p>
+      <div id="footer-social-links" class="footer-social-links" style="display: flex; gap: 1rem; align-items: center;"></div>
+      <p class="footer-copy" id="footer-copyright-text" data-i18n="footerCopyright">&copy; 2026 তূলিকা বুটিক (Tulika Boutique). All rights reserved.</p>
       <a href="admin.html" class="footer-admin-link">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -270,6 +352,76 @@
       </a>
     </div>
   </footer>
+
+  <!-- Customer Review Submission Modal -->
+  <div id="customer-review-modal" class="modal-backdrop" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="customer-review-modal-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="customer-review-modal-title" data-i18n="reviewModalTitle">আপনার মূল্যবান মতামত জানান</h3>
+        <button type="button" class="modal-close-btn" id="close-customer-review-modal-btn" aria-label="Close">&times;</button>
+      </div>
+      <form id="customer-review-form" novalidate>
+        <div class="modal-body">
+          <p class="review-modal-subhead" data-i18n="writeReviewSubhead">
+            আমাদের বুটিকের পোশাক ও পরিষেবা সম্পর্কে আপনার মূল্যবান অভিজ্ঞতা ভাগ করে নিন
+          </p>
+
+          <!-- Alert boxes -->
+          <div id="customer-review-alert-error" class="review-alert review-alert-error" style="display: none;" role="alert"></div>
+          <div id="customer-review-alert-success" class="review-alert review-alert-success" style="display: none;" role="status"></div>
+
+          <div id="customer-review-form-fields">
+            <!-- Author Name -->
+            <div class="form-group">
+              <label for="customer-review-author">
+                <span data-i18n="authorName">গ্রাহকের নাম ও শহর</span> <span class="required-star">*</span>
+              </label>
+              <input type="text" id="customer-review-author" class="form-control" required maxlength="100" data-i18n-placeholder="reviewAuthorPlaceholder" placeholder="আপনার নাম ও শহর (উদাঃ অনন্যা চ্যাটার্জী, কলকাতা)">
+            </div>
+
+            <!-- Rating Selector -->
+            <div class="form-group">
+              <label id="star-rating-label">
+                <span data-i18n="selectRating">রেটিং নির্বাচন করুন</span> <span class="required-star">*</span>
+              </label>
+              <div class="star-rating-selector" role="radiogroup" aria-labelledby="star-rating-label">
+                <button type="button" class="star-btn active" data-value="1" aria-label="1 star" title="1 Star">★</button>
+                <button type="button" class="star-btn active" data-value="2" aria-label="2 stars" title="2 Stars">★</button>
+                <button type="button" class="star-btn active" data-value="3" aria-label="3 stars" title="3 Stars">★</button>
+                <button type="button" class="star-btn active" data-value="4" aria-label="4 stars" title="4 Stars">★</button>
+                <button type="button" class="star-btn active" data-value="5" aria-label="5 stars" title="5 Stars">★</button>
+              </div>
+              <input type="hidden" id="customer-review-rating" value="5">
+              <span id="star-rating-feedback" class="star-rating-feedback">★★★★★ (৫/৫ - অসাধারণ)</span>
+            </div>
+
+            <!-- Review Text -->
+            <div class="form-group">
+              <label for="customer-review-comment">
+                <span data-i18n="commentBn">মন্তব্য</span> <span class="required-star">*</span>
+              </label>
+              <textarea id="customer-review-comment" class="form-control" rows="4" required maxlength="1000" data-i18n-placeholder="reviewCommentPlaceholder" placeholder="পোশাকের গুণমান, কাপড়ের বুনন এবং ডেলিভারি অভিজ্ঞতা সম্পর্কে লিখুন..."></textarea>
+              <div class="field-hint" style="text-align: right; font-size: 0.78rem; color: var(--text-muted); margin-top: 0.25rem;">
+                <span id="review-char-count">০</span>/১০০০
+              </div>
+            </div>
+
+            <div class="review-notice-box">
+              <span aria-hidden="true">ℹ️</span>
+              <small data-i18n="reviewNoticeText">সুরক্ষা সুরক্ষায় আপনার মতামতটি অ্যাডমিন অনুমোদনের পর ওয়েবসাইটে প্রদর্শিত হবে।</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer" id="customer-review-form-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-customer-review-btn" data-i18n="cancel">বাতিল</button>
+          <button type="submit" id="submit-customer-review-btn" class="btn btn-primary">
+            <span class="btn-text" data-i18n="submitReviewBtn">রিভিউ জমা দিন</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Toast Notification Slot -->
   <div id="toast-slot" class="toast-container" aria-live="polite"></div>

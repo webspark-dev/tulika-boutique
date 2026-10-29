@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tulika End-to-End Verification Suite</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 20px; background: #f8fafc; color: #1e293b; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .status-box { padding: 12px; border-radius: 8px; margin-bottom: 16px; font-weight: bold; }
+    .status-running { background: #e0f2fe; color: #0369a1; }
+    .status-pass { background: #dcfce7; color: #15803d; }
+    .status-fail { background: #fee2e2; color: #b91c1c; }
+    .test-log { background: #0f172a; color: #f8fafc; padding: 16px; border-radius: 8px; font-family: monospace; font-size: 0.85rem; height: 320px; overflow-y: auto; white-space: pre-wrap; }
+    .frames { display: flex; gap: 16px; margin-top: 16px; }
+    iframe { width: 50%; height: 500px; border: 1px solid #cbd5e1; border-radius: 8px; background: white; }
+  </style>
+</head>
+<body>
+  <h1>তূলিকা বুটিক — End-to-End Verification Test Suite</h1>
+  <div id="status" class="status-box status-running">Running tests...</div>
+  <div id="log" class="test-log"></div>
+
+  <div class="frames">
+    <iframe id="admin-frame" src="admin.html?demo=1"></iframe>
+    <iframe id="store-frame" src="index.html"></iframe>
+  </div>
+
+  <script type="module">
+    import { DEFAULT_CUSTOMIZATION } from './js/store.js';
+
+    const statusEl = document.getElementById('status');
+    const logEl = document.getElementById('log');
+    const adminFrame = document.getElementById('admin-frame');
+    const storeFrame = document.getElementById('store-frame');
+
+    let totalTests = 0;
+    let passedTests = 0;
+    let failedTests = 0;
+
+    function log(msg, type = 'info') {
+      const prefix = type === 'pass' ? '✅ [PASS] ' : type === 'fail' ? '❌ [FAIL] ' : 'ℹ️ ';
+      logEl.textContent += prefix + msg + '\n';
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function assert(condition, message) {
+      totalTests++;
+      if (condition) {
+        passedTests++;
+        log(message, 'pass');
+      } else {
+        failedTests++;
+        log(message + ' -- ASSERTION FAILED', 'fail');
+      }
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function runSuite() {
+      try {
+        log('Waiting for iframes to load DOM...');
+        await sleep(1500);
+
+        const adminDoc = adminFrame.contentDocument || adminFrame.contentWindow.document;
+        const storeDoc = storeFrame.contentDocument || storeFrame.contentWindow.document;
+
+        assert(adminDoc !== null, 'Admin iframe loaded');
+        assert(storeDoc !== null, 'Storefront iframe loaded');
+
+        // TEST 1: Open Website Customization Tab
+        log('\n--- TEST GROUP 1: ADMIN TABS & SUB-TABS ---');
+        const customTabBtn = adminDoc.querySelector('.admin-nav-tab[data-tab="customization"]');
+        assert(customTabBtn !== null, 'Found "Website Customization" tab button in Admin nav');
+        customTabBtn.click();
+        await sleep(300);
+
+        const customPanel = adminDoc.getElementById('panel-customization');
+        assert(customPanel && customPanel.style.display !== 'none', 'Customization tab panel is now VISIBLE (display: block)');
+
+        // Verify all 5 Sub-Tabs
+        const subtabs = ['logo', 'nav', 'hero', 'sections', 'design'];
+        for (const sub of subtabs) {
+          const btn = adminDoc.querySelector(`.custom-sub-tab[data-subtab="${sub}"]`);
+          assert(btn !== null, `Sub-tab button for "${sub}" exists`);
+          btn.click();
+          await sleep(100);
+          const panel = adminDoc.getElementById(`subpanel-${sub}`);
+          assert(panel && panel.classList.contains('active'), `Sub-panel "#subpanel-${sub}" is active when clicked`);
+        }
+
+        // TEST 2: Sliders & Live Badges
+        log('\n--- TEST GROUP 2: SLIDERS & TWO-WAY COLOR PICKERS ---');
+        const widthSlider = adminDoc.getElementById('custom-logo-width');
+        const widthBadge = adminDoc.getElementById('badge-logo-width');
+        widthSlider.value = 180;
+        widthSlider.dispatchEvent(new Event('input'));
+        assert(widthBadge.textContent === '180px', 'Logo width slider updates badge to 180px');
+
+        const heightSlider = adminDoc.getElementById('custom-logo-height');
+        const heightBadge = adminDoc.getElementById('badge-logo-height');
+        heightSlider.value = 54;
+        heightSlider.dispatchEvent(new Event('input'));
+        assert(heightBadge.textContent === '54px', 'Logo height slider updates badge to 54px');
+
+        const btnRadSlider = adminDoc.getElementById('custom-btn-radius');
+        const btnRadBadge = adminDoc.getElementById('badge-btn-radius');
+        btnRadSlider.value = 18;
+        btnRadSlider.dispatchEvent(new Event('input'));
+        assert(btnRadBadge.textContent === '18px', 'Button radius slider updates badge to 18px');
+
+        // Color Picker Two-Way Sync
+        const primaryText = adminDoc.getElementById('custom-color-primary');
+        const primaryPicker = adminDoc.getElementById('custom-color-primary-picker');
+        primaryPicker.value = '#800020';
+        primaryPicker.dispatchEvent(new Event('input'));
+        assert(primaryText.value === '#800020', 'Color picker updates primary color text input to #800020');
+
+        primaryText.value = '#990033';
+        primaryText.dispatchEvent(new Event('input'));
+        assert(primaryPicker.value === '#990033', 'Hex text input updates color picker to #990033');
+
+        // Unsaved Changes Indicator
+        const dirtyBadge = adminDoc.getElementById('custom-dirty-indicator');
+        assert(dirtyBadge && dirtyBadge.style.display !== 'none', 'Unsaved changes indicator (dirty badge) is shown');
+
+        // TEST 3: Nav Items Reordering & Visibility
+        log('\n--- TEST GROUP 3: NAVIGATION TABLE EDITOR ---');
+        const navSubTab = adminDoc.querySelector('.custom-sub-tab[data-subtab="nav"]');
+        navSubTab.click();
+        await sleep(200);
+
+        const downBtn = adminDoc.querySelector('#custom-nav-items-tbody .btn-nav-down');
+        assert(downBtn !== null, 'Found Down (▼) button in navigation items editor');
+        downBtn.click();
+        await sleep(200);
+
+        // After clicking Down on item 0 (Collection), item 0 becomes About Us and item 1 becomes Collection
+        const firstItemBnInput = adminDoc.querySelector('#custom-nav-items-tbody tr[data-index="0"] .nav-input-bn');
+        assert(firstItemBnInput && firstItemBnInput.value.includes('আমাদের'), 'Reordered items: "আমাদের কথা" (About Us) is now in 1st position');
+
+        // Hide Reviews section
+        const reviewsVisibleCheck = adminDoc.querySelector('#custom-nav-items-tbody tr[data-index="2"] .nav-check-visible');
+        if (reviewsVisibleCheck) {
+          reviewsVisibleCheck.checked = false;
+          reviewsVisibleCheck.dispatchEvent(new Event('change'));
+          log('Unchecked Reviews visibility in nav items editor');
+        }
+
+        // TEST 4: Modify Hero, Sections, and Brand Texts
+        log('\n--- TEST GROUP 4: HERO & SECTION TEXT CUSTOMIZATION ---');
+        const brandBnInput = adminDoc.getElementById('custom-brand-name-bn');
+        const brandEnInput = adminDoc.getElementById('custom-brand-name-en');
+        brandBnInput.value = 'তূলিকা রয়্যাল সিল্ক';
+        brandBnInput.dispatchEvent(new Event('input'));
+        brandEnInput.value = 'Tulika Royal Silk';
+        brandEnInput.dispatchEvent(new Event('input'));
+
+        const heroHdBn = adminDoc.getElementById('custom-hero-headline-bn');
+        const heroHdEn = adminDoc.getElementById('custom-hero-headline-en');
+        heroHdBn.value = 'বাঙালির ঐতিহ্যবাহী ঢাকাই ও বিষ্ণুপুরী সিল্ক';
+        heroHdBn.dispatchEvent(new Event('input'));
+        heroHdEn.value = 'Authentic Bengal Dhakai & Bishnupuri Silk';
+        heroHdEn.dispatchEvent(new Event('input'));
+
+        const heroBtnBn = adminDoc.getElementById('custom-hero-btn-bn');
+        const heroBtnEn = adminDoc.getElementById('custom-hero-btn-en');
+        heroBtnBn.value = 'শাড়ির সম্ভার দেখুন';
+        heroBtnBn.dispatchEvent(new Event('input'));
+        heroBtnEn.value = 'Explore Silk Sarees';
+        heroBtnEn.dispatchEvent(new Event('input'));
+
+        // Hide Reviews section in Sections subtab
+        const reviewsSecCheck = adminDoc.getElementById('custom-sec-reviews-visible');
+        if (reviewsSecCheck) {
+          reviewsSecCheck.checked = false;
+          reviewsSecCheck.dispatchEvent(new Event('change'));
+        }
+
+        // TEST 5: Save Customization
+        log('\n--- TEST GROUP 5: SAVE CUSTOMIZATION & LOCAL STORAGE PERSISTENCE ---');
+        const saveBtn = adminDoc.getElementById('btn-save-customization');
+        assert(saveBtn !== null, 'Found "Save Customization" button');
+        saveBtn.click();
+        for (let i = 0; i < 50; i++) {
+          await sleep(100);
+          if (!saveBtn.disabled) break;
+        }
+
+        assert(dirtyBadge.style.display === 'none', 'Dirty indicator hidden after save');
+        const savedCustomJson = adminFrame.contentWindow.localStorage.getItem('tulika_customization');
+        assert(savedCustomJson !== null, 'Settings persisted to localStorage key "tulika_customization"');
+
+        const parsed = JSON.parse(savedCustomJson);
+        assert(parsed.logo.width === 180, 'Saved logo width is 180px in stored payload');
+        assert(parsed.logo.brand_name_bn === 'তূলিকা রয়্যাল সিল্ক', 'Saved brand name (BN) in payload');
+        assert(parsed.logo.brand_name_en === 'Tulika Royal Silk', 'Saved brand name (EN) in payload');
+        assert(parsed.design.primary_color === '#990033', 'Saved primary color #990033 in payload');
+        assert(parsed.design.btn_border_radius === 18, 'Saved button radius 18px in payload');
+
+        // TEST 6: Public Website Real-time Application
+        log('\n--- TEST GROUP 6: PUBLIC STOREFRONT DOM INJECTION ---');
+        // Ensure starting in light mode for custom design color test
+        storeFrame.contentWindow.localStorage.setItem('tulika_theme', 'light');
+        storeFrame.contentWindow.__STORE_READY__ = false;
+        storeFrame.contentWindow.location.reload();
+        
+        // Wait for storefront to fully finish loading and initializing fresh document
+        for (let i = 0; i < 40; i++) {
+          await sleep(200);
+          if (storeFrame.contentWindow?.__STORE_READY__ === true) break;
+        }
+        await sleep(300);
+
+        const storeDoc2 = storeFrame.contentDocument || storeFrame.contentWindow.document;
+        log('DEBUG raw local storage in storeFrame: ' + storeFrame.contentWindow.localStorage.getItem('tulika_customization'));
+        log('DEBUG storeDoc2 brandNameEl text: ' + storeDoc2.getElementById('store-brand-name')?.textContent);
+        log('DEBUG storeFrame window.__STORE_READY__: ' + storeFrame.contentWindow.__STORE_READY__);
+        const brandNameEl = storeDoc2.getElementById('store-brand-name');
+        assert(brandNameEl && (brandNameEl.textContent === 'তূলিকা রয়্যাল সিল্ক' || brandNameEl.textContent === 'Tulika Royal Silk'),
+          `Storefront brand name updated to: "${brandNameEl?.textContent}"`);
+
+        const heroTitleEl = storeDoc2.getElementById('hero-title');
+        assert(heroTitleEl && heroTitleEl.textContent.includes('সিল্ক'),
+          `Storefront hero title updated to: "${heroTitleEl?.textContent}"`);
+
+        const heroBtnEl = storeDoc2.getElementById('hero-explore-btn');
+        assert(heroBtnEl && (heroBtnEl.textContent.includes('শাড়ির') || heroBtnEl.textContent.includes('Explore')),
+          `Storefront hero CTA updated to: "${heroBtnEl?.textContent}"`);
+
+        const reviewsSecEl = storeDoc2.getElementById('reviews');
+        assert(reviewsSecEl && reviewsSecEl.style.display === 'none', 'Reviews section is HIDDEN on storefront as configured');
+
+        const rootStyle = storeFrame.contentWindow.getComputedStyle(storeDoc2.documentElement);
+        const primaryColorVal = rootStyle.getPropertyValue('--primary').trim();
+        assert(primaryColorVal.toLowerCase() === '#990033', `Root CSS var --primary applied in light mode: "${primaryColorVal}"`);
+
+        const btnRadiusVal = rootStyle.getPropertyValue('--btn-radius').trim();
+        assert(btnRadiusVal === '18px', `Root CSS var --btn-radius applied: "${btnRadiusVal}"`);
+
+        // TEST 7: Independent Language Switching
+        log('\n--- TEST GROUP 7: INDEPENDENT BENGALI & ENGLISH LANGUAGE SWITCHING ---');
+        const langToggleBtn = storeDoc2.getElementById('lang-toggle-btn');
+        assert(langToggleBtn !== null, 'Found language toggle button on storefront');
+
+        // Switch to English
+        const initialLang = storeFrame.contentWindow.localStorage.getItem('tulika_lang') || 'bn';
+        if (initialLang === 'bn') {
+          langToggleBtn.click();
+          await sleep(400);
+        }
+        assert(brandNameEl.textContent === 'Tulika Royal Silk', 'English brand name applied on EN toggle: "Tulika Royal Silk"');
+        assert(heroTitleEl.textContent === 'Authentic Bengal Dhakai & Bishnupuri Silk', 'English hero headline applied: "Authentic Bengal Dhakai & Bishnupuri Silk"');
+        assert(heroBtnEl.textContent === 'Explore Silk Sarees', 'English hero CTA button applied: "Explore Silk Sarees"');
+
+        // Switch back to Bengali
+        langToggleBtn.click();
+        await sleep(400);
+        assert(brandNameEl.textContent === 'তূলিকা রয়্যাল সিল্ক', 'Bengali brand name applied on BN toggle: "তূলিকা রয়্যাল সিল্ক"');
+        assert(heroTitleEl.textContent === 'বাঙালির ঐতিহ্যবাহী ঢাকাই ও বিষ্ণুপুরী সিল্ক', 'Bengali hero headline applied: "বাঙালির ঐতিহ্যবাহী ঢাকাই ও বিষ্ণুপুরী সিল্ক"');
+
+        // TEST 8: Theme Switching
+        log('\n--- TEST GROUP 8: LIGHT & DARK THEME TOGGLE ---');
+        const themeBtn = storeDoc2.getElementById('theme-toggle-btn');
+        assert(themeBtn !== null, 'Found theme toggle button on storefront');
+
+        // Switch to Dark
+        themeBtn.click();
+        await sleep(300);
+        const themeDark = storeDoc2.documentElement.getAttribute('data-theme');
+        assert(themeDark === 'dark', 'Switched to DARK theme (data-theme="dark")');
+        assert(storeDoc2.documentElement.style.getPropertyValue('--primary') === '', 'Dark mode removes inline primary color override to allow dark CSS palette');
+
+        // Switch back to Light
+        themeBtn.click();
+        await sleep(300);
+        const themeLight = storeDoc2.documentElement.getAttribute('data-theme');
+        assert(themeLight === 'light', 'Switched back to LIGHT theme (data-theme="light")');
+        assert(storeDoc2.documentElement.style.getPropertyValue('--primary') === '#990033', 'Light mode restored custom primary brand color #990033');
+
+        // TEST 9: Restore Defaults
+        log('\n--- TEST GROUP 9: RESTORE DEFAULTS ---');
+        const resetBtn = adminDoc.getElementById('btn-reset-customization-defaults');
+        resetBtn.click();
+        await sleep(200);
+
+        const confirmOkBtn = adminDoc.getElementById('confirm-modal-ok-btn');
+        assert(confirmOkBtn !== null, 'Confirmation modal displayed for Restore Defaults');
+        confirmOkBtn.click();
+        await sleep(300);
+
+        assert(widthSlider.value == DEFAULT_CUSTOMIZATION.logo.width, `Logo width reset to default: ${DEFAULT_CUSTOMIZATION.logo.width}px`);
+        saveBtn.click();
+        await sleep(500);
+        log('Restored defaults saved successfully.');
+
+        // TEST 10: Customer Reviews System & Moderation
+        log('\n--- TEST GROUP 10: CUSTOMER REVIEW SYSTEM & MODERATION ---');
+        // A. Storefront "Write a Review" CTA & Modal
+        const writeReviewBtn = storeDoc.getElementById('btn-open-review-modal');
+        assert(writeReviewBtn !== null, 'Found "Write a Review" button in storefront');
+        writeReviewBtn.click();
+        await sleep(300);
+
+        const reviewModal = storeDoc.getElementById('customer-review-modal');
+        assert(reviewModal && reviewModal.style.display === 'flex', 'Customer review modal opened (display: flex)');
+
+        // Star rating click test
+        const star4 = storeDoc.querySelector('#customer-review-modal .star-btn[data-value="4"]');
+        assert(star4 !== null, 'Found 4-star rating button');
+        star4.click();
+        const ratingInput = storeDoc.getElementById('customer-review-rating');
+        assert(ratingInput && ratingInput.value === '4', 'Clicking 4th star set rating input value to 4');
+
+        // Close review modal
+        const closeReviewModalBtn = storeDoc.getElementById('close-customer-review-modal-btn');
+        assert(closeReviewModalBtn !== null, 'Found close button on review modal');
+        closeReviewModalBtn.click();
+        await sleep(200);
+        assert(reviewModal && reviewModal.style.display === 'none', 'Customer review modal closed');
+
+        // B. Admin Panel Review Moderation
+        const adminReviewsTab = adminDoc.querySelector('.admin-nav-tab[data-tab="reviews"]');
+        assert(adminReviewsTab !== null, 'Found Reviews tab button in Admin nav');
+        adminReviewsTab.click();
+        await sleep(300);
+
+        const reviewsPanel = adminDoc.getElementById('panel-reviews');
+        assert(reviewsPanel && reviewsPanel.style.display !== 'none', 'Reviews panel is VISIBLE');
+
+        const filterAllBtn = adminDoc.querySelector('.review-filter-btn[data-filter="all"]');
+        const filterPendingBtn = adminDoc.querySelector('.review-filter-btn[data-filter="pending"]');
+        const filterPublishedBtn = adminDoc.querySelector('.review-filter-btn[data-filter="published"]');
+        assert(filterAllBtn !== null && filterPendingBtn !== null && filterPublishedBtn !== null, 'All 3 review moderation filters (All, Pending, Published) exist');
+
+        filterPendingBtn.click();
+        await sleep(200);
+        assert(filterPendingBtn.classList.contains('active'), 'Pending review filter became active when clicked');
+
+        const pendingStat = adminDoc.getElementById('stat-pending-reviews-count');
+        assert(pendingStat !== null, 'Pending reviews stat counter exists in dashboard overview');
+
+        // Summary
+        log(`\n======================================================`);
+        log(`TEST SUITE RESULTS: ${passedTests} PASSED, ${failedTests} FAILED out of ${totalTests} total tests`);
+        log(`======================================================`);
+
+        if (failedTests === 0) {
+          statusEl.className = 'status-box status-pass';
+          statusEl.textContent = `ALL ${passedTests} TESTS PASSED! Website Customization is fully verified.`;
+        } else {
+          statusEl.className = 'status-box status-fail';
+          statusEl.textContent = `${failedTests} test(s) failed out of ${totalTests}.`;
+        }
+
+        window.__TEST_RESULTS__ = { total: totalTests, passed: passedTests, failed: failedTests };
+      } catch (err) {
+        log('FATAL ERROR DURING TEST EXECUTION: ' + err.stack, 'fail');
+        statusEl.className = 'status-box status-fail';
+        statusEl.textContent = 'Execution error: ' + err.message;
+        window.__TEST_RESULTS__ = { error: err.message };
+      }
+    }
+
+    runSuite();
+  </script>
+</body>
+</html>
