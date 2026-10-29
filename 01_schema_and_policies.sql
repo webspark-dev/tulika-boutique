@@ -156,6 +156,8 @@ $$;
 REVOKE ALL ON FUNCTION public.is_current_user_admin() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.is_current_user_admin() FROM anon;
 GRANT EXECUTE ON FUNCTION public.is_current_user_admin() TO authenticated;
+REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_admin() FROM anon;
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
 
 

@@ -5,7 +5,7 @@
 // ==============================================================================
 
 import { getSupabase, isConfigured } from './supabase.js';
-import { WHATSAPP_PLACEHOLDER, SUPABASE_URL } from './config.js';
+import { WHATSAPP_PLACEHOLDER, SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { getCurrentLang, t } from './i18n.js';
 
 // Local photo map for the 8 signature boutique products
@@ -451,20 +451,12 @@ export async function getSettings() {
   const sb = getSupabase();
   let baseSettings = { ...mockSettings };
 
-  try {
-    const localCustom = localStorage.getItem('tulika_customization');
-    if (localCustom) {
-      baseSettings.customization = deepMerge(DEFAULT_CUSTOMIZATION, JSON.parse(localCustom));
-    }
-  } catch (e) {}
-
   if (!sb) return baseSettings;
 
   try {
     const { data, error } = await sb.from('settings').select('*').eq('id', 1).single();
     if (error) {
-      console.warn('Could not fetch settings from Supabase, using defaults:', error.message);
-      return baseSettings;
+      throw error;
     }
     const merged = { ...baseSettings, ...(data || {}) };
 
@@ -477,36 +469,21 @@ export async function getSettings() {
         ? data.customization
         : null;
 
-    if (remoteCustom) {
-      if (baseSettings.customization) {
-        // Local customizations saved in this browser take priority over remote (e.g. offline/demo/recent edits)
-        merged.customization = deepMerge(remoteCustom, baseSettings.customization);
-      } else {
-        merged.customization = deepMerge(DEFAULT_CUSTOMIZATION, remoteCustom);
-        try {
-          localStorage.setItem('tulika_customization', JSON.stringify(merged.customization));
-        } catch (e) {}
-      }
-    } else {
-      // Remote is empty {} — preserve saved local customization or defaults
-      merged.customization = baseSettings.customization || { ...DEFAULT_CUSTOMIZATION };
-    }
+    // The database is the source of truth in a configured installation.  Do not
+    // let an old browser-local draft overwrite an admin's newer server change.
+    merged.customization = remoteCustom
+      ? deepMerge(DEFAULT_CUSTOMIZATION, remoteCustom)
+      : { ...DEFAULT_CUSTOMIZATION };
 
     return merged;
   } catch (err) {
-    console.warn('getSettings network error, falling back to local defaults:', err);
-    return baseSettings;
+    console.warn('getSettings failed:', err);
+    throw new Error(`Could not load website settings: ${err.message || 'network request failed'}`);
   }
 }
 
 export async function updateSettings(fields) {
   const sb = getSupabase();
-
-  if (fields.customization) {
-    try {
-      localStorage.setItem('tulika_customization', JSON.stringify(fields.customization));
-    } catch (e) {}
-  }
 
   if (!sb) {
     mockSettings = { ...mockSettings, ...fields };
@@ -522,16 +499,13 @@ export async function updateSettings(fields) {
       .single();
 
     if (error) {
-      console.warn('Supabase updateSettings warning:', error.message);
-      mockSettings = { ...mockSettings, ...fields };
-      return mockSettings;
+      throw error;
     }
     mockSettings = { ...mockSettings, ...(data || {}) };
     return data;
   } catch (err) {
-    console.warn('updateSettings network error, persisted locally:', err);
-    mockSettings = { ...mockSettings, ...fields };
-    return mockSettings;
+    console.warn('updateSettings failed:', err);
+    throw new Error(`Could not save website settings: ${err.message || 'network request failed'}`);
   }
 }
 
@@ -549,14 +523,13 @@ export async function getCategories() {
       .order('sort_order', { ascending: true });
 
     if (error) {
-      console.warn('Supabase getCategories query error, using fallback:', error.message);
-      return [...mockCategories].sort((a, b) => a.sort_order - b.sort_order);
+      throw error;
     }
     // Return genuine Supabase categories (or empty array if none exist)
     return data || [];
   } catch (err) {
-    console.warn('getCategories network error, using fallback:', err);
-    return [...mockCategories].sort((a, b) => a.sort_order - b.sort_order);
+    console.warn('getCategories failed:', err);
+    throw new Error(`Could not load categories: ${err.message || 'network request failed'}`);
   }
 }
 
@@ -759,11 +732,7 @@ export async function getProducts({
 
     const { data, count, error } = await query;
     if (error) {
-      console.warn('Supabase query error:', error.message);
-      if ((categoryId && categoryId !== 'all') || cleanSearch) {
-        return { data: [], count: 0 };
-      }
-      return getMockProductsFiltered({ categoryId, search: cleanSearch, matchingCategoryIds, includeHidden, page, limit });
+      throw error;
     }
     if (!data || data.length === 0) {
       return { data: [], count: 0 };
@@ -771,11 +740,8 @@ export async function getProducts({
     const normalized = (data || []).map(normalizeProduct);
     return { data: normalized, count: count || normalized.length };
   } catch (err) {
-    console.warn('Network error reaching Supabase:', err);
-    if ((categoryId && categoryId !== 'all') || search) {
-      return { data: [], count: 0 };
-    }
-    return getMockProductsFiltered({ categoryId, search, matchingCategoryIds, includeHidden, page, limit });
+    console.warn('getProducts failed:', err);
+    throw new Error(`Could not load products: ${err.message || 'network request failed'}`);
   }
 }
 
@@ -842,7 +808,7 @@ export async function deleteProduct(product) {
 
   if (!sb) {
     mockProducts = mockProducts.filter((p) => p.id !== id);
-    return true;
+    return { deleted: true, storageCleanupError: null };
   }
 
   // Step 1: Delete database row
@@ -856,7 +822,10 @@ export async function deleteProduct(product) {
     throw err;
   }
 
-  // Step 2: Delete storage file if from Supabase bucket
+  // Step 2: Delete storage file if from Supabase bucket. The product has already
+  // been removed, so a storage-cleanup failure is reported to the caller without
+  // pretending that the database deletion failed.
+  let storageCleanupError = null;
   if (imageUrl && imageUrl.includes('/product-images/')) {
     try {
       const path = extractStoragePath(imageUrl);
@@ -865,18 +834,16 @@ export async function deleteProduct(product) {
           .from('product-images')
           .remove([path]);
         if (storageError) {
-          throw new Error(
-            `পণ্যটি ডাটাবেজ থেকে মুছে গেছে, তবে স্টোরেজ ছবি মুছতে ব্যর্থ: ${storageError.message} (ধাপ ২ ব্যর্থ)`
-          );
+          storageCleanupError = storageError;
         }
       }
     } catch (sErr) {
+      storageCleanupError = sErr;
       console.warn('Storage cleanup failed after DB delete:', sErr);
-      throw sErr;
     }
   }
 
-  return true;
+  return { deleted: true, storageCleanupError };
 }
 
 // ==============================================================================
@@ -1022,6 +989,45 @@ function extractStoragePath(fullUrl) {
     console.warn('Failed to parse storage path from URL:', fullUrl);
   }
   return null;
+}
+
+/** Remove a single uploaded image only after its database reference is gone. */
+export async function removeStorageImage(imageUrl) {
+  const sb = getSupabase();
+  const path = extractStoragePath(imageUrl || '');
+  if (!sb || !path) return false;
+  const { error } = await sb.storage.from('product-images').remove([path]);
+  if (error) throw error;
+  return true;
+}
+
+// A single shared channel prevents duplicate subscriptions when this module is
+// imported by more than one storefront component.
+let storefrontRealtimeChannel = null;
+
+/**
+ * Subscribe to public catalog/settings changes. PostgreSQL RLS still governs
+ * which rows the browser can receive. Returns an idempotent unsubscribe method.
+ */
+export function subscribeToStoreUpdates({ onProducts, onCategories, onSettings, onStatus } = {}) {
+  const sb = getSupabase();
+  if (!sb || storefrontRealtimeChannel) return () => {};
+
+  storefrontRealtimeChannel = sb
+    .channel('tulika-storefront-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => onProducts?.(payload))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, (payload) => onCategories?.(payload))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'settings', filter: 'id=eq.1' }, (payload) => onSettings?.(payload))
+    .subscribe((status, error) => onStatus?.(status, error));
+
+  let closed = false;
+  return () => {
+    if (closed) return;
+    closed = true;
+    const channel = storefrontRealtimeChannel;
+    storefrontRealtimeChannel = null;
+    if (channel) sb.removeChannel(channel);
+  };
 }
 
 // ==============================================================================
@@ -1290,6 +1296,41 @@ export function withTimeout(promise, timeoutMs = 12000, timeoutMessage = 'Reques
   });
 }
 
+/**
+ * Safe connectivity probe used only after an Auth request has timed out.
+ * It never sends an email, password, session, or token and only checks the
+ * public Auth settings endpoint so the UI can distinguish a backend outage
+ * from a browser/device-specific blocked password request.
+ */
+async function probeAuthService(timeoutMs = 6000) {
+  const controller = new AbortController();
+  const startedAt = performance.now();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const baseUrl = SUPABASE_URL.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+    const response = await fetch(`${baseUrl}/auth/v1/settings`, {
+      method: 'GET',
+      headers: { apikey: SUPABASE_ANON_KEY },
+      cache: 'no-store',
+      signal: controller.signal
+    });
+    return {
+      reachable: response.ok,
+      status: response.status,
+      elapsedMs: Math.round(performance.now() - startedAt)
+    };
+  } catch (error) {
+    return {
+      reachable: false,
+      status: null,
+      elapsedMs: Math.round(performance.now() - startedAt),
+      timedOut: error?.name === 'AbortError'
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function signIn(email, password, timeoutMs = 30000) {
   const t0 = performance.now();
   console.log('[Auth Stage 1] Initializing Supabase client for password authentication...');
@@ -1322,10 +1363,14 @@ export async function signIn(email, password, timeoutMs = 30000) {
     return data;
   } catch (err) {
     const duration = Math.round(performance.now() - t0);
+    if (err?.code === 'AUTH_TIMEOUT' || err?.name === 'TimeoutError') {
+      err.authProbe = await probeAuthService();
+    }
     console.error(`[Auth Stage Error] Authentication failed after ${duration}ms:`, {
       name: err.name,
       message: err.message,
-      status: err.status || err.code
+      status: err.status || err.code,
+      authProbe: err.authProbe || null
     });
     throw err;
   }
@@ -1428,9 +1473,35 @@ export async function getSession(timeoutMs = 8000) {
 }
 
 let lastAdminCheckError = null;
+let lastAdminCheckDiagnostics = [];
 
 export function getLastAdminCheckError() {
   return lastAdminCheckError;
+}
+
+/** Safe, token-free diagnostics for the Admin Login console. */
+export function getLastAdminCheckDiagnostics() {
+  return lastAdminCheckDiagnostics.map((item) => ({ ...item }));
+}
+
+function recordAdminCheck(strategy, outcome, error = null) {
+  const detail = {
+    strategy,
+    outcome,
+    status: error?.status || null,
+    code: error?.code || null,
+    message: error?.message ? String(error.message).slice(0, 240) : null
+  };
+  lastAdminCheckDiagnostics.push(detail);
+  // Never log the user object, session, access token, refresh token, email, or password.
+  console.info('[Admin authorization]', detail);
+}
+
+function adminCheckUnavailableError() {
+  const err = new Error('Admin authorization could not be verified. The database authorization check is unavailable.');
+  err.name = 'AdminAuthorizationError';
+  err.code = 'ADMIN_CHECK_UNAVAILABLE';
+  return err;
 }
 
 /**
@@ -1438,39 +1509,47 @@ export function getLastAdminCheckError() {
  */
 export async function checkIsAdmin(user, timeoutMs = 20000) {
   lastAdminCheckError = null;
+  lastAdminCheckDiagnostics = [];
   if (!user || !user.id) {
-    console.warn('[checkIsAdmin] No user or user.id provided:', user);
+    recordAdminCheck('input', 'missing-user');
     return false;
   }
   const sb = getSupabase();
   if (!sb) {
     lastAdminCheckError = new Error('Supabase client is not configured');
+    recordAdminCheck('client', 'unavailable', lastAdminCheckError);
     return false;
   }
 
   const isBn = getCurrentLang() === 'bn';
   const timeoutMsg = isBn ? 'অ্যাডমিন স্ট্যাটাস যাচাই সময়সীমা উত্তীর্ণ' : 'Admin check timed out';
 
-  // Strategy 1: Try public.is_admin() RPC function
+  // Strategy 1: canonical, server-side authorization check. A boolean false is
+  // an authorization result (not an RLS failure), so do not mask it by trying a
+  // less reliable table query afterward.
   try {
     const rpcPromise1 = sb.rpc('is_admin');
     const { data: rpc1Result, error: rpc1Error } = await withTimeout(rpcPromise1, 5000, 'RPC is_admin timeout');
-    if (!rpc1Error && typeof rpc1Result === 'boolean' && rpc1Result === true) {
-      return true;
+    if (!rpc1Error && typeof rpc1Result === 'boolean') {
+      recordAdminCheck('rpc:is_admin', rpc1Result ? 'authorized' : 'not-authorized');
+      return rpc1Result;
     }
+    recordAdminCheck('rpc:is_admin', 'unavailable', rpc1Error || new Error('RPC returned a non-boolean result'));
   } catch (rpc1Ex) {
-    // Non-fatal, proceed to next verification strategy
+    recordAdminCheck('rpc:is_admin', 'failed', rpc1Ex);
   }
 
   // Strategy 2: Try public.is_current_user_admin() RPC function
   try {
     const rpcPromise2 = sb.rpc('is_current_user_admin');
     const { data: rpc2Result, error: rpc2Error } = await withTimeout(rpcPromise2, 5000, 'RPC is_current_user_admin timeout');
-    if (!rpc2Error && typeof rpc2Result === 'boolean' && rpc2Result === true) {
-      return true;
+    if (!rpc2Error && typeof rpc2Result === 'boolean') {
+      recordAdminCheck('rpc:is_current_user_admin', rpc2Result ? 'authorized' : 'not-authorized');
+      return rpc2Result;
     }
+    recordAdminCheck('rpc:is_current_user_admin', 'unavailable', rpc2Error || new Error('RPC returned a non-boolean result'));
   } catch (rpc2Ex) {
-    // Non-fatal, proceed to direct table query
+    recordAdminCheck('rpc:is_current_user_admin', 'failed', rpc2Ex);
   }
 
   // Strategy 3: Direct query on public.admins matching auth.uid() = user_id
@@ -1483,19 +1562,18 @@ export async function checkIsAdmin(user, timeoutMs = 20000) {
       .maybeSingle();
 
     const { data, error } = await withTimeout(checkPromise, timeoutMs, timeoutMsg);
-    const tableDuration = Math.round(performance.now() - tableStart);
-
     if (error) {
-      console.error('[checkIsAdmin] Strategy 3 error from Supabase:', error);
-      lastAdminCheckError = error;
+      recordAdminCheck('table:admins', 'failed', error);
+      lastAdminCheckError = adminCheckUnavailableError();
       return false;
     }
 
-    return Boolean(data && data.user_id === user.id);
+    const isAdmin = Boolean(data && data.user_id === user.id);
+    recordAdminCheck('table:admins', isAdmin ? 'authorized' : 'not-authorized');
+    return isAdmin;
   } catch (err) {
-    const tableDuration = Math.round(performance.now() - tableStart);
-    console.error(`[checkIsAdmin] Strategy 3 exception (${tableDuration}ms):`, err.message);
-    lastAdminCheckError = err;
+    recordAdminCheck('table:admins', `failed-after-${Math.round(performance.now() - tableStart)}ms`, err);
+    lastAdminCheckError = adminCheckUnavailableError();
     return false;
   }
 }

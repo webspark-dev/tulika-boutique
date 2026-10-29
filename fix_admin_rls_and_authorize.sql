@@ -13,7 +13,7 @@
 -- 1A. Inspect authenticated user in auth.users
 SELECT id AS auth_uid, email, created_at, last_sign_in_at 
 FROM auth.users 
-WHERE email = 'palasdas2006@gmail.com';
+WHERE email = 'palasdas0708@gmail.com';
 
 -- 1B. Inspect all currently existing RLS policies on public.admins
 SELECT policyname, cmd, roles, qual, with_check 
@@ -101,7 +101,7 @@ GRANT EXECUTE ON FUNCTION public.is_current_user_admin() TO authenticated;
 -- (Guarantees zero foreign key mismatch or invented UUIDs)
 INSERT INTO public.admins (user_id)
 SELECT id FROM auth.users
-WHERE email = 'palasdas2006@gmail.com'
+WHERE email = 'palasdas0708@gmail.com'
 ON CONFLICT (user_id) DO NOTHING;
 
 

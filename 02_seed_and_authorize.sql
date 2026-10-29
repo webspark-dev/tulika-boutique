@@ -267,13 +267,13 @@ ON CONFLICT (id) DO UPDATE SET
 
 
 -- ------------------------------------------------------------------------------
--- 5. ADMIN AUTHORIZATION (palasdas2006@gmail.com)
+-- 5. ADMIN AUTHORIZATION (palasdas0708@gmail.com)
 -- ------------------------------------------------------------------------------
 -- Grants admin authorization in public.admins by matching the user's Supabase Auth email.
--- Note: User account palasdas2006@gmail.com must first exist in Supabase Auth (Authentication > Users).
+-- Note: User account palasdas0708@gmail.com must first exist in Supabase Auth (Authentication > Users).
 INSERT INTO public.admins (user_id)
 SELECT id FROM auth.users
-WHERE email = 'palasdas2006@gmail.com'
+WHERE email = 'palasdas0708@gmail.com'
 ON CONFLICT (user_id) DO NOTHING;
 
 

@@ -129,6 +129,27 @@ AS $$
   );
 $$;
 
+-- Dedicated RPC endpoint used by the browser's authorization fallback.
+CREATE OR REPLACE FUNCTION public.is_current_user_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public, auth
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.admins
+    WHERE user_id = auth.uid()
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_admin() FROM anon;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
+REVOKE ALL ON FUNCTION public.is_current_user_admin() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_current_user_admin() FROM anon;
+GRANT EXECUTE ON FUNCTION public.is_current_user_admin() TO authenticated;
+
 -- ==============================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- Strict enforcement: public users are read-only for visible items.

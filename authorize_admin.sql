@@ -8,10 +8,10 @@
 -- ==============================================================================
 
 -- STEP 1: Insert the admin record by matching the user's authenticated email.
--- Replace 'palasdas2006@gmail.com' with your actual account email if different.
+-- Replace 'palasdas0708@gmail.com' with your actual account email if different.
 INSERT INTO public.admins (user_id)
 SELECT id FROM auth.users
-WHERE email = 'palasdas2006@gmail.com'
+WHERE email = 'palasdas0708@gmail.com'
 ON CONFLICT (user_id) DO NOTHING;
 
 -- STEP 2: Verification Query

@@ -52,6 +52,11 @@ py -m http.server 8000
 - `schema.sql` চালানোর সাথে সাথে `product-images` নামের পাবলিক বাকেটটি তৈরি হয়ে যাবে (সাইজ লিমিট ৫MB, ফরম্যাট: JPEG, PNG, WEBP)।
 - Storage পলিসিতে পাবলিক রিড এবং অ্যাডমিন-অনলি রাইট কনফিগার করা রয়েছে।
 
+### ধাপ ৩.১: লাইভ আপডেট (Realtime) চালু করুন
+- Supabase SQL Editor-এ `03_enable_storefront_realtime.sql` একবার চালান। এটি `products`, `categories`, এবং `settings`-কে `supabase_realtime` publication-এ যোগ করে; RLS বা Storage অনুমতি দুর্বল করে না।
+- এরপর খোলা storefront-এ কোনও অ্যাডমিনের product price, stock, visibility, category, বা website settings পরিবর্তন সাধারণত সঙ্গে সঙ্গেই দেখা যাবে—Vercel/Netlify deploy লাগবে না।
+- Realtime সংযোগ সাময়িকভাবে অনুপলব্ধ থাকলে storefront প্রতি 60 সেকেন্ডে নিরাপদভাবে নতুন data পরীক্ষা করবে।
+
 ### ধাপ ৪: প্রথম অ্যাডমিন অ্যাকাউন্ট তৈরি ও অনুমোদন
 1. সুপাবেস ড্যাশবোর্ডে **Authentication** &rarr; **Users** &rarr; **"Add user"** ক্লিক করুন।
 2. মালিকের ইমেইল ও একটি শক্তিশালী পাসওয়ার্ড দিন এবং **"Create user"** চাপুন।

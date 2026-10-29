@@ -26,6 +26,7 @@ import {
   updateProduct,
   deleteProduct,
   processAndUploadImage,
+  removeStorageImage,
   cleanOrphanImages,
   getReviews,
   createReview,
@@ -39,6 +40,7 @@ import {
   getSession,
   checkIsAdmin,
   getLastAdminCheckError,
+  getLastAdminCheckDiagnostics,
   withTimeout,
   PRODUCT_PHOTO_MAP,
   DEFAULT_CUSTOMIZATION
@@ -214,6 +216,11 @@ function formatAuthErrorMessage(err, lang = getCurrentLang()) {
 
   // 1. Timeout
   if (name.includes('timeout') || code.includes('timeout') || msg.includes('timeout') || msg.includes('timed out')) {
+    if (err?.authProbe?.reachable) {
+      return isBn
+        ? 'লগইন রিকোয়েস্টটি সময়সীমা পার করেছে, কিন্তু Supabase Auth সার্ভার সচল আছে। এই ব্রাউজারে VPN, ad/privacy blocker, antivirus web shield, proxy বা DNS filter বন্ধ করে আবার চেষ্টা করুন।'
+        : 'The password-login request timed out, but Supabase Auth is reachable. Disable any VPN, ad/privacy blocker, antivirus web shield, proxy, or DNS filter in this browser and try again.';
+    }
     return isBn
       ? t('authTimeout')
       : 'Authentication timed out: The server did not respond in time. Please check your connection and try again.';
@@ -314,6 +321,17 @@ function formatAuthErrorMessage(err, lang = getCurrentLang()) {
   return isBn ? `লগইন ব্যর্থ: ${rawMsg}` : `Authentication failed: ${rawMsg}`;
 }
 
+function formatAdminVerificationError(lang = getCurrentLang()) {
+  const diagnostics = getLastAdminCheckDiagnostics();
+  const failed = [...diagnostics].reverse().find((item) => item.outcome?.startsWith('failed') || item.outcome === 'unavailable');
+  const reference = failed
+    ? ` [${failed.strategy}${failed.status ? ` HTTP ${failed.status}` : ''}${failed.code ? ` / ${failed.code}` : ''}]`
+    : '';
+  return lang === 'bn'
+    ? `অ্যাডমিন অনুমোদন যাচাই করা যায়নি${reference}। লগইন সফল হতে পারে, কিন্তু Supabase-এর authorization function বা RLS configuration পাওয়া যাচ্ছে না।`
+    : `Admin authorization could not be verified${reference}. Authentication may have succeeded, but the Supabase authorization function or RLS configuration is unavailable.`;
+}
+
 /**
  * Renders the unauthorized access screen with account details and exact copyable SQL
  */
@@ -338,77 +356,21 @@ function displayUnauthorizedAccess(user) {
   const sqlCode = document.getElementById('unauthorized-sql-code');
 
   if (lastErr) {
-    const rawMsg = lastErr.message || String(lastErr);
     if (unauthText) {
       unauthText.innerHTML = isBn
-        ? `ডেটাবেজ পারমিশন ত্রুটি: <code>${rawMsg}</code><br><small style="margin-top:6px; display:block; color:inherit;">Supabase <code>public.admins</code> টেবিলের RLS পলিসিতে রিকার্সন বা পারমিশন ত্রুটির কারণে আপনার অ্যাডমিন স্ট্যাটাস যাচাই করা সম্ভব হয়নি।</small>`
-        : `Database Policy Verification Error: <code>${rawMsg}</code><br><small style="margin-top:6px; display:block; color:inherit;">An RLS policy recursion or permission error occurred while verifying the <code>public.admins</code> table in Supabase.</small>`;
+        ? `অ্যাডমিন authorization যাচাই করা যায়নি।<br><small style="margin-top:6px; display:block; color:inherit;">এটি লগইন পাসওয়ার্ডের ত্রুটি নয়। <code>public.admins</code> schema, RPC function, বা RLS configuration পরীক্ষা করুন।</small>`
+        : `Admin authorization could not be verified.<br><small style="margin-top:6px; display:block; color:inherit;">This is not a password error. Check the <code>public.admins</code> schema, RPC function, and RLS configuration.</small>`;
     }
 
     if (helperBox && sqlCode) {
-      const fixSql = `-- 1. Fix RLS Policy Recursion on public.admins:
-DROP POLICY IF EXISTS "Authenticated can check admin row" ON public.admins;
-DROP POLICY IF EXISTS "Admins can manage admins" ON public.admins;
-DROP POLICY IF EXISTS "Allow authenticated user to read own admin row" ON public.admins;
-DROP POLICY IF EXISTS "Admins can insert admins" ON public.admins;
-DROP POLICY IF EXISTS "Admins can update admins" ON public.admins;
-DROP POLICY IF EXISTS "Admins can delete admins" ON public.admins;
-DROP POLICY IF EXISTS "Allow authenticated user to view admins" ON public.admins;
-DROP POLICY IF EXISTS "Admins viewable by authenticated users" ON public.admins;
-
-CREATE POLICY "Allow authenticated user to read own admin row"
-  ON public.admins FOR SELECT
-  TO authenticated
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Admins can insert admins"
-  ON public.admins FOR INSERT
-  TO authenticated
-  WITH CHECK (public.is_admin());
-
-CREATE POLICY "Admins can update admins"
-  ON public.admins FOR UPDATE
-  TO authenticated
-  USING (public.is_admin())
-  WITH CHECK (public.is_admin());
-
-CREATE POLICY "Admins can delete admins"
-  ON public.admins FOR DELETE
-  TO authenticated
-  USING (public.is_admin());
-
--- 2. Fast Non-Recursive RPC Helper Function:
-CREATE OR REPLACE FUNCTION public.is_current_user_admin()
-RETURNS BOOLEAN
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public, auth
-STABLE
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.admins
-    WHERE user_id = auth.uid()
-  );
-$$;
-
-REVOKE ALL ON FUNCTION public.is_current_user_admin() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.is_current_user_admin() FROM anon;
-GRANT EXECUTE ON FUNCTION public.is_current_user_admin() TO authenticated;
-
--- 3. Authorize account from auth.users:
-INSERT INTO public.admins (user_id)
-SELECT id FROM auth.users
-WHERE email = 'palasdas2006@gmail.com'
-ON CONFLICT (user_id) DO NOTHING;`;
-
-      sqlCode.textContent = fixSql;
+      sqlCode.textContent = `Run the read-only 04_diagnose_admin_authorization.sql script first. If it identifies a missing RPC or RLS policy, run 05_repair_admin_authorization.sql after reviewing it.`;
       helperBox.style.display = 'block';
     }
   } else {
     if (unauthText) {
       unauthText.innerHTML = isBn
-        ? `প্রবেশাধিকার নেই: <strong>${email || 'আপনার অ্যাকাউন্টটি'}</strong> Supabase-এ ভেরিফাইড হলেও <code>public.admins</code> টেবিলে অন্তর্ভুক্ত নয়। নিরাপত্তা সুরক্ষায় আপনাকে স্বয়ংক্রিয়ভাবে সাইন আউট করা হয়েছে।`
-        : `Access Restricted: The account <strong>${email || 'Your account'}</strong> is authenticated, but does not exist in the <code>public.admins</code> table. For security, you have been signed out.`;
+        ? `প্রবেশাধিকার নেই: <strong>${escapeHtml(email) || 'আপনার অ্যাকাউন্টটি'}</strong> Supabase-এ ভেরিফাইড হলেও <code>public.admins</code> টেবিলে অন্তর্ভুক্ত নয়। আপনার সেশন সক্রিয় আছে; অনুমোদিত অ্যাডমিনকে SQL Editor-এ আপনার UID যোগ করতে হবে।`
+        : `Access Restricted: The account <strong>${escapeHtml(email) || 'Your account'}</strong> is authenticated, but does not exist in the <code>public.admins</code> table. Your session remains active; an authorized administrator must add this UID in the SQL Editor.`;
     }
 
     if (helperBox && sqlCode && uid) {
@@ -698,14 +660,11 @@ function setupAuthForms() {
       }
 
       try {
-        console.log('[Login Diagnostic] Submitting signIn with email:', email);
+        console.log('[Login Diagnostic] Submitting password sign-in request.');
         const data = await signIn(email, password);
         console.log('[Login Diagnostic] signIn succeeded:', {
-          userId: data?.user?.id,
-          userEmail: data?.user?.email,
           hasSession: Boolean(data?.session),
-          accessTokenPresent: Boolean(data?.session?.access_token),
-          tokenExpiry: data?.session?.expires_at
+          hasUser: Boolean(data?.user)
         });
 
         currentUser = data.user;
@@ -716,9 +675,7 @@ function setupAuthForms() {
         if (lastErr) {
           // Network or database verification error - do NOT sign out, allow user to retry
           if (errorMsg) {
-            errorMsg.innerHTML = isBn
-              ? `অ্যাডমিন যাচাইকরণে ত্রুটি: ${lastErr.message || lastErr}`
-              : `Admin verification error: ${lastErr.message || lastErr}`;
+            errorMsg.innerHTML = formatAdminVerificationError(getCurrentLang());
             errorMsg.style.display = 'block';
           }
           return;
@@ -871,9 +828,7 @@ function setupAuthForms() {
 
         if (lastErr) {
           if (otpErrorMsg) {
-            otpErrorMsg.innerHTML = isBn
-              ? `অ্যাডমিন যাচাইকরণে ত্রুটি: ${lastErr.message || lastErr}`
-              : `Admin verification error: ${lastErr.message || lastErr}`;
+            otpErrorMsg.innerHTML = formatAdminVerificationError(getCurrentLang());
             otpErrorMsg.style.display = 'block';
           }
           return;
@@ -985,7 +940,7 @@ function setupAuthForms() {
         const lastErr = getLastAdminCheckError();
 
         if (lastErr) {
-          showToast(isBn ? `যাচাইকরণে ত্রুটি: ${lastErr.message || lastErr}` : `Verification error: ${lastErr.message || lastErr}`, true);
+          showToast(isBn ? 'অ্যাডমিন অনুমোদন যাচাই করা যায়নি। Console diagnostics পরীক্ষা করুন।' : 'Admin authorization could not be verified. Check the console diagnostics.', true);
           return;
         }
 
@@ -1176,8 +1131,11 @@ function renderAdminProductsTable() {
           description: isBn ? 'পণ্যটি স্থায়ীভাবে ডাটাবেজ এবং স্টোরেজ থেকে মুছে যাবে।' : 'This product will be permanently deleted from database and storage.',
           onConfirm: async () => {
             try {
-              await deleteProduct(prod);
+              const result = await deleteProduct(prod);
               showToast(t('toastDeleteSuccess'));
+              if (result?.storageCleanupError) {
+                showToast(isBn ? 'পণ্যটি মুছে গেছে, তবে পুরোনো ছবিটি পরে Storage ট্যাব থেকে পরিষ্কার করুন।' : 'Product was deleted, but its old image needs Storage cleanup.', true);
+              }
               await loadAdminProducts();
               updateDashboardStats();
             } catch (err) {
@@ -1406,17 +1364,22 @@ function setupProductForm() {
 
     saveBtn.disabled = true;
     saveBtn.textContent = t('saving');
+    let uploadedImageUrl = '';
+    let databaseSaved = false;
 
     try {
       const id = document.getElementById('modal-product-id').value;
       const file = fileInput.files[0];
       let imageUrl = document.getElementById('modal-product-existing-image').value;
+      const previousProduct = id ? adminProducts.find((product) => product.id === id) : null;
+      const oldImageUrl = previousProduct?.image_url || '';
 
       // Handle image upload with auto-resize and EXIF stripping
       if (file) {
         statusText.textContent = isBn ? 'ইমেজ রিসাইজ ও আপলোড হচ্ছে...' : 'Resizing and uploading image...';
         statusText.style.color = 'var(--text-muted)';
         imageUrl = await processAndUploadImage(file);
+        uploadedImageUrl = imageUrl;
       }
 
       const checkedSizes = Array.from(document.querySelectorAll('input[name="product-size"]:checked')).map(cb => cb.value);
@@ -1443,9 +1406,20 @@ function setupProductForm() {
 
       if (id) {
         await updateProduct(id, productPayload);
+        databaseSaved = true;
+        // Only remove the old object after the new reference has committed.
+        if (oldImageUrl && oldImageUrl !== imageUrl) {
+          try {
+            await removeStorageImage(oldImageUrl);
+          } catch (cleanupError) {
+            console.warn('Old product image was retained after a successful replacement:', cleanupError);
+            showToast(isBn ? 'পণ্য আপডেট হয়েছে, তবে পুরোনো ছবিটি Storage ট্যাব থেকে পরিষ্কার করুন।' : 'Product updated; the old image can be cleaned from the Storage tab.', true);
+          }
+        }
         showToast(isBn ? 'পণ্য সফলভাবে আপডেট করা হয়েছে!' : 'Product updated successfully!');
       } else {
         await createProduct(productPayload);
+        databaseSaved = true;
         showToast(isBn ? 'নতুন পণ্য সফলভাবে যুক্ত করা হয়েছে!' : 'New product created successfully!');
       }
 
@@ -1453,6 +1427,15 @@ function setupProductForm() {
       await loadAdminProducts();
       updateDashboardStats();
     } catch (err) {
+      // A replacement upload that never reached a product record is safe to
+      // remove. Preserve form input so the admin can correct and retry.
+      if (uploadedImageUrl && !databaseSaved) {
+        try {
+          await removeStorageImage(uploadedImageUrl);
+        } catch (cleanupError) {
+          console.warn('Could not clean failed product upload:', cleanupError);
+        }
+      }
       showToast(`সংরক্ষণ ব্যর্থ: ${err.message}`, true);
     } finally {
       saveBtn.disabled = false;
@@ -1753,7 +1736,8 @@ function setupSettingsForm() {
         hours_en: document.getElementById('setting-hours-en').value.trim()
       };
 
-      await updateSettings(payload);
+      const saved = await updateSettings(payload);
+      adminSettings = { ...(adminSettings || {}), ...(saved || payload) };
       showToast(t('toastSaveSuccess'));
     } catch (err) {
       showToast(`সেটিংস আপডেট ব্যর্থ: ${err.message}`, true);

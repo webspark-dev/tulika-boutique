@@ -19,7 +19,8 @@ import {
   getReviews,
   submitCustomerReview,
   formatReviewDate,
-  PRODUCT_PHOTO_MAP
+  PRODUCT_PHOTO_MAP,
+  subscribeToStoreUpdates
 } from './store.js';
 
 // State
@@ -33,6 +34,9 @@ let currentProducts = [];
 let allReviews = [];
 const activeSizeSelections = new Map();
 let scrollRevealObserver = null;
+let unsubscribeStoreUpdates = null;
+let realtimeRefreshTimer = null;
+let realtimeFallbackTimer = null;
 
 /**
  * Initialize IntersectionObserver for smooth scroll reveals
@@ -183,13 +187,9 @@ function initStorageSync() {
       renderReviews();
       updateSettingsDisplay();
     }
-    if (e.key === 'tulika_customization' && e.newValue) {
-      try {
-        const parsed = JSON.parse(e.newValue);
-        if (appSettings) appSettings.customization = parsed;
-        updateSettingsDisplay();
-      } catch (err) {}
-    }
+    // Older versions saved customization locally. A configured site now treats
+    // Supabase as authoritative, so refetch rather than applying a stale draft.
+    if (e.key === 'tulika_customization') scheduleStorefrontRefresh({ settings: true });
   });
 }
 
@@ -627,6 +627,11 @@ async function loadCategories() {
     console.error('Error fetching categories:', err);
     allCategories = [];
   }
+  // A category may have been removed in another admin session. Keep the current
+  // filter state where possible, otherwise return to the valid “all” filter.
+  if (activeCategoryId !== 'all' && !allCategories.some((c) => String(c.id) === String(activeCategoryId))) {
+    activeCategoryId = 'all';
+  }
   renderCategories();
   // Ensure product cards have category names attached once categories are loaded
   if (currentProducts && currentProducts.length > 0) {
@@ -761,6 +766,62 @@ async function loadProductGrid() {
     console.error('Failed to load products:', err);
     renderProductError();
   }
+}
+
+/** Coalesce rapid Realtime events into the smallest safe set of refetches. */
+function scheduleStorefrontRefresh({ products = false, categories = false, settings = false } = {}) {
+  const requested = { products, categories, settings };
+  if (realtimeRefreshTimer) {
+    const pending = realtimeRefreshTimer.requested;
+    pending.products ||= requested.products;
+    pending.categories ||= requested.categories;
+    pending.settings ||= requested.settings;
+    return;
+  }
+
+  realtimeRefreshTimer = window.setTimeout(async () => {
+    const work = realtimeRefreshTimer?.requested || requested;
+    realtimeRefreshTimer = null;
+    if (work.settings) await loadStoreSettings();
+    if (work.categories) await loadCategories();
+    // Category changes can alter the active filter and product labels.
+    if (work.products || work.categories) await loadProductGrid();
+  }, 180);
+  realtimeRefreshTimer.requested = requested;
+}
+
+function startStorefrontRealtime() {
+  if (unsubscribeStoreUpdates) return;
+
+  unsubscribeStoreUpdates = subscribeToStoreUpdates({
+    onProducts: () => scheduleStorefrontRefresh({ products: true }),
+    onCategories: () => scheduleStorefrontRefresh({ categories: true }),
+    onSettings: () => scheduleStorefrontRefresh({ settings: true }),
+    onStatus: (status, error) => {
+      if (status === 'SUBSCRIBED') {
+        if (realtimeFallbackTimer) window.clearInterval(realtimeFallbackTimer);
+        realtimeFallbackTimer = null;
+        return;
+      }
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        console.warn('Storefront Realtime is unavailable; using periodic refresh fallback.', status, error || '');
+        if (!realtimeFallbackTimer) {
+          scheduleStorefrontRefresh({ products: true, categories: true, settings: true });
+          realtimeFallbackTimer = window.setInterval(
+            () => scheduleStorefrontRefresh({ products: true, categories: true, settings: true }),
+            60000
+          );
+        }
+      }
+    }
+  });
+
+  window.addEventListener('pagehide', () => {
+    if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer);
+    if (realtimeFallbackTimer) window.clearInterval(realtimeFallbackTimer);
+    unsubscribeStoreUpdates?.();
+    unsubscribeStoreUpdates = null;
+  }, { once: true });
 }
 
 function renderProducts() {
@@ -1344,6 +1405,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadProductGrid(),
     loadReviews()
   ]);
+  startStorefrontRealtime();
   initCustomerReviews();
   initSearch();
   initScrollReveal();
