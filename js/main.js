@@ -73,8 +73,15 @@ function initScrollReveal() {
  */
 function cleanPhoneForWhatsApp(phoneStr) {
   if (!phoneStr) return '919876543210';
-  const digits = String(phoneStr).replace(/\D/g, '');
-  return digits || '919876543210';
+  let digits = String(phoneStr).replace(/\D/g, '');
+  if (!digits) return '919876543210';
+  // If 10 digits (standard Indian mobile number without country code), prepend 91
+  if (digits.length === 10) {
+    digits = '91' + digits;
+  } else if (digits.length === 11 && digits.startsWith('0')) {
+    digits = '91' + digits.slice(1);
+  }
+  return digits;
 }
 
 /**

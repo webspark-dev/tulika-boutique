@@ -1496,11 +1496,12 @@ function setupSettingsForm() {
   const form = document.getElementById('admin-settings-form');
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const waInput = document.getElementById('setting-whatsapp').value.trim();
+    const waInputRaw = document.getElementById('setting-whatsapp').value.trim();
+    const waClean = waInputRaw.replace(/\D/g, '');
 
     // Validate WhatsApp number: 8–15 digits only!
-    if (!/^[0-9]{8,15}$/.test(waInput)) {
-      showToast('হোয়াটসঅ্যাপ নম্বরটি ৮ থেকে ১৫ সংখ্যার মধ্যে হতে হবে (কোনো + বা স্পেস ছাড়া)', true);
+    if (!/^[0-9]{8,15}$/.test(waClean)) {
+      showToast('হোয়াটসঅ্যাপ নম্বরটি ৮ থেকে ১৫ সংখ্যার মধ্যে হতে হবে', true);
       return;
     }
 
@@ -1516,7 +1517,7 @@ function setupSettingsForm() {
         about_bn: document.getElementById('setting-about-bn').value.trim(),
         about_en: document.getElementById('setting-about-en').value.trim(),
         phone: document.getElementById('setting-phone').value.trim(),
-        whatsapp: waInput,
+        whatsapp: waClean,
         address_bn: document.getElementById('setting-address-bn').value.trim(),
         address_en: document.getElementById('setting-address-en').value.trim(),
         hours_bn: document.getElementById('setting-hours-bn').value.trim(),
