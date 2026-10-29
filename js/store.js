@@ -548,11 +548,18 @@ export async function getCategories() {
       .select('*')
       .order('sort_order', { ascending: true });
 
-    if (error) throw error;
-    return data || [];
+    if (error) {
+      console.warn('Supabase getCategories query error, using fallback:', error.message);
+      return [...mockCategories].sort((a, b) => a.sort_order - b.sort_order);
+    }
+    if (!data || data.length === 0) {
+      console.info('No categories found in database, using fallback categories');
+      return [...mockCategories].sort((a, b) => a.sort_order - b.sort_order);
+    }
+    return data;
   } catch (err) {
-    console.error('getCategories error:', err);
-    throw new Error('সংযোগ ব্যর্থ — আবার চেষ্টা করুন');
+    console.warn('getCategories network error, using fallback:', err);
+    return [...mockCategories].sort((a, b) => a.sort_order - b.sort_order);
   }
 }
 
@@ -736,6 +743,9 @@ export async function getProducts({
       return getMockProductsFiltered({ categoryId, search, includeHidden, page, limit });
     }
     if (!data || data.length === 0) {
+      if ((categoryId && categoryId !== 'all') || search.trim()) {
+        return { data: [], count: 0 };
+      }
       return getMockProductsFiltered({ categoryId, search, includeHidden, page, limit });
     }
     const normalized = (data || []).map(normalizeProduct);

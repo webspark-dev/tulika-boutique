@@ -594,10 +594,11 @@ function applyCustomizationToDOM(customization, lang = getCurrentLang()) {
 async function loadCategories() {
   try {
     allCategories = await getCategories();
-    renderCategories();
   } catch (err) {
     console.error('Error fetching categories:', err);
+    allCategories = [];
   }
+  renderCategories();
 }
 
 function renderCategories() {
@@ -1217,11 +1218,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderSetupNotice(noticeSlot);
   }
 
-  // Load backend content
-  await loadStoreSettings();
-  await loadCategories();
-  await loadProductGrid();
-  await loadReviews();
+  // Pre-render default store settings & WhatsApp links immediately so buttons work with zero delay
+  updateSettingsDisplay();
+
+  // Load backend content concurrently so slow settings don't block categories or products
+  await Promise.allSettled([
+    loadStoreSettings(),
+    loadCategories(),
+    loadProductGrid(),
+    loadReviews()
+  ]);
   initCustomerReviews();
   initSearch();
   initScrollReveal();
