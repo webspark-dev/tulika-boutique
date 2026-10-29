@@ -857,12 +857,6 @@ function renderProducts() {
     }
     return;
   }
-        if (sortSelect) sortSelect.value = 'newest';
-        selectCategory('all');
-      });
-    }
-    return;
-  }
 
   const fabricLabel = t('fabricLabel') || (isBn ? 'ফেব্রিক:' : 'Fabric:');
   const sizeLabel = t('sizeLabel') || (isBn ? 'সাইজ:' : 'Size:');
