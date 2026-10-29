@@ -217,6 +217,16 @@
         </div>
       </div>
 
+      <!-- Empty Catalog Notice -->
+      <div id="admin-empty-catalog-notice" style="display: none; background: #FFF8E1; border: 1px solid #FFE082; border-left: 4px solid #F57F17; border-radius: var(--radius-sm); padding: 1rem 1.25rem; margin-bottom: 1.5rem; color: #5D4037;">
+        <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.25rem;">
+          আপনার স্টোর ক্যাটালগ এখনো খালি (Store Catalog is Currently Empty)
+        </div>
+        <div style="font-size: 0.85rem; line-height: 1.5;">
+          শুরু করতে প্রথমে <strong>বিভাগ সমূহ (Categories)</strong> ট্যাবে গিয়ে বিভাগ তৈরি করুন অথবা Supabase SQL Editor-এ <code>02_seed_and_authorize.sql</code> স্ক্রিপ্টটি চালান।
+        </div>
+      </div>
+
       <!-- Navigation Tabs -->
       <nav class="admin-nav-tabs" role="tablist">
         <button class="admin-nav-tab active" data-tab="products" data-i18n="tabProducts">পণ্য তালিকা</button>
@@ -1024,7 +1034,7 @@
             </div>
             <div class="form-group">
               <label for="modal-product-price" data-i18n="priceLabel">মূল্য (₹)</label>
-              <input type="number" id="modal-product-price" class="form-control" min="0" step="1" required>
+              <input type="number" id="modal-product-price" class="form-control" min="0" step="any" required>
             </div>
           </div>
 
@@ -1114,8 +1124,9 @@
           <div class="form-group">
             <label data-i18n="productImage">পণ্যের ছবি (ম্যাক্স ১২০০px, অটো কম্প্রেস)</label>
             <input type="file" id="modal-product-file" class="form-control" accept="image/jpeg,image/png,image/webp">
-            <div id="modal-image-preview-box" style="margin-top: 0.75rem; display: flex; align-items: center; gap: 1rem;">
+            <div id="modal-image-preview-box" style="margin-top: 0.75rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
               <img id="modal-product-preview-img" src="" alt="Preview" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); display: none;">
+              <button type="button" id="btn-remove-product-image" class="pill-btn btn-sm" style="display: none; color: var(--danger); border-color: var(--danger);">ছবি সরান</button>
               <span id="modal-image-status-text" style="font-size: 0.825rem; color: var(--text-muted);"></span>
             </div>
           </div>

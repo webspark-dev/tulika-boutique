@@ -938,7 +938,7 @@ function setupAuthForms() {
  * Load all Admin Datasets
  */
 async function loadAllAdminData() {
-  await Promise.all([
+  await Promise.allSettled([
     loadAdminProducts(),
     loadAdminCategories(),
     loadAdminSettings(),
@@ -951,15 +951,21 @@ function updateDashboardStats() {
   const total = adminProducts.length;
   const visible = adminProducts.filter((p) => p.is_visible).length;
   const soldout = adminProducts.filter((p) => p.stock_status === 'sold_out').length;
+  const totalCategories = adminCategories.length;
   const totalReviews = adminReviews.length;
   const pendingReviews = adminReviews.filter((r) => !r.is_visible).length;
   const publishedReviews = adminReviews.filter((r) => r.is_visible).length;
 
-  document.getElementById('stat-total-products').textContent = total;
-  document.getElementById('stat-visible-products').textContent = visible;
-  document.getElementById('stat-soldout-products').textContent = soldout;
-  document.getElementById('stat-categories-count').textContent = adminCategories.length;
-  document.getElementById('stat-reviews-count').textContent = totalReviews;
+  const totalEl = document.getElementById('stat-total-products');
+  if (totalEl) totalEl.textContent = total;
+  const visibleEl = document.getElementById('stat-visible-products');
+  if (visibleEl) visibleEl.textContent = visible;
+  const soldoutEl = document.getElementById('stat-soldout-products');
+  if (soldoutEl) soldoutEl.textContent = soldout;
+  const catEl = document.getElementById('stat-categories-count');
+  if (catEl) catEl.textContent = totalCategories;
+  const revEl = document.getElementById('stat-reviews-count');
+  if (revEl) revEl.textContent = totalReviews;
 
   const pendingStat = document.getElementById('stat-pending-reviews-count');
   if (pendingStat) pendingStat.textContent = pendingReviews;
@@ -970,6 +976,12 @@ function updateDashboardStats() {
   if (countPending) countPending.textContent = pendingReviews;
   const countPub = document.getElementById('count-published-reviews');
   if (countPub) countPub.textContent = publishedReviews;
+
+  // Toggle empty catalog notice if neither products nor categories exist
+  const emptyNotice = document.getElementById('admin-empty-catalog-notice');
+  if (emptyNotice) {
+    emptyNotice.style.display = (total === 0 && totalCategories === 0) ? 'block' : 'none';
+  }
 }
 
 // ==============================================================================
@@ -1018,7 +1030,11 @@ function renderAdminProductsTable() {
   const pageItems = filtered.slice(start, start + PRODUCTS_PER_PAGE);
 
   if (pageItems.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-muted);">${t('noProductsFound')}</td></tr>`;
+    const isFiltered = productCategoryFilter !== 'all' || productSearchTerm.trim().length > 0;
+    const emptyMsg = isFiltered
+      ? (isBn ? 'এই ফিল্টারে কোনো পণ্য পাওয়া যায়নি।' : 'No products matched this filter.')
+      : (isBn ? 'এখনো কোনো পণ্য তৈরি করা হয়নি। নতুন পণ্য যোগ করতে "+ নতুন পণ্য যোগ করুন" বাটনে ক্লিক করুন।' : 'No products created yet. Click "+ Add New Product" to create your first product.');
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); line-height: 1.6;">${emptyMsg}</td></tr>`;
     renderAdminProductsPagination(totalPages);
     return;
   }
@@ -1134,15 +1150,22 @@ function openProductModal(product = null) {
   const modal = document.getElementById('product-modal');
   const titleEl = document.getElementById('product-modal-title');
   const catSelect = document.getElementById('modal-product-category');
+  const isBn = getCurrentLang() === 'bn';
+  const btnRemoveImg = document.getElementById('btn-remove-product-image');
 
   // Populate categories dropdown
   const lang = getCurrentLang();
-  catSelect.innerHTML = adminCategories
-    .map(
-      (c) =>
-        `<option value="${c.id}">${lang === 'bn' ? c.name_bn : c.name_en}</option>`
-    )
-    .join('');
+  if (adminCategories.length === 0) {
+    catSelect.innerHTML = `<option value="" disabled selected>${isBn ? '-- কোনো বিভাগ নেই (প্রথমে বিভাগ তৈরি করুন) --' : '-- No categories found (create category first) --'}</option>`;
+    showToast(isBn ? 'পণ্য তৈরি করার আগে অনুগ্রহ করে কমপক্ষে একটি বিভাগ তৈরি করুন।' : 'Please create at least one category before adding products.', true);
+  } else {
+    catSelect.innerHTML = adminCategories
+      .map(
+        (c) =>
+          `<option value="${c.id}">${lang === 'bn' ? c.name_bn : c.name_en}</option>`
+      )
+      .join('');
+  }
 
   if (product) {
     titleEl.textContent = t('editProduct');
@@ -1173,8 +1196,10 @@ function openProductModal(product = null) {
     if (product.image_url) {
       preview.src = product.image_url;
       preview.style.display = 'block';
+      if (btnRemoveImg) btnRemoveImg.style.display = 'inline-block';
     } else {
       preview.style.display = 'none';
+      if (btnRemoveImg) btnRemoveImg.style.display = 'none';
     }
   } else {
     titleEl.textContent = t('addProduct');
@@ -1188,6 +1213,7 @@ function openProductModal(product = null) {
       cb.checked = cb.value === 'Free Size';
     });
     document.getElementById('modal-product-preview-img').style.display = 'none';
+    if (btnRemoveImg) btnRemoveImg.style.display = 'none';
   }
 
   document.getElementById('modal-image-status-text').textContent = '';
@@ -1203,6 +1229,21 @@ function setupProductForm() {
   const fileInput = document.getElementById('modal-product-file');
   const previewImg = document.getElementById('modal-product-preview-img');
   const statusText = document.getElementById('modal-image-status-text');
+  const btnRemoveImg = document.getElementById('btn-remove-product-image');
+
+  // Remove image button
+  if (btnRemoveImg) {
+    btnRemoveImg.addEventListener('click', () => {
+      document.getElementById('modal-product-existing-image').value = '';
+      fileInput.value = '';
+      previewImg.src = '';
+      previewImg.style.display = 'none';
+      btnRemoveImg.style.display = 'none';
+      const isBn = getCurrentLang() === 'bn';
+      statusText.textContent = isBn ? 'ছবি সরানো হয়েছে।' : 'Image removed.';
+      statusText.style.color = 'var(--text-muted)';
+    });
+  }
 
   // Auto-generate SKU button listener
   const btnGenSku = document.getElementById('btn-generate-sku');
@@ -1214,16 +1255,79 @@ function setupProductForm() {
 
   fileInput.addEventListener('change', () => {
     const file = fileInput.files[0];
-    if (file) {
-      statusText.textContent = `ফাইল নির্বাচিত: ${file.name} (${Math.round(file.size / 1024)} KB)`;
-      previewImg.src = URL.createObjectURL(file);
-      previewImg.style.display = 'block';
+    const isBn = getCurrentLang() === 'bn';
+    if (!file) {
+      statusText.textContent = '';
+      return;
     }
+
+    const allowedMime = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
+    if (file.type && !allowedMime.includes(file.type)) {
+      statusText.textContent = isBn ? 'ত্রুটি: শুধুমাত্র JPG, PNG, WEBP বা SVG ফাইল গ্রহণযোগ্য।' : 'Error: Only JPG, PNG, WEBP, or SVG files allowed.';
+      statusText.style.color = 'var(--danger)';
+      previewImg.style.display = 'none';
+      if (btnRemoveImg) btnRemoveImg.style.display = 'none';
+      fileInput.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      statusText.textContent = isBn ? `ত্রুটি: ফাইলের আকার (${sizeMb} MB) অতিরিক্ত বড় (সর্বোচ্চ ৫ MB)।` : `Error: File size (${sizeMb} MB) exceeds 5 MB limit.`;
+      statusText.style.color = 'var(--danger)';
+      previewImg.style.display = 'none';
+      if (btnRemoveImg) btnRemoveImg.style.display = 'none';
+      fileInput.value = '';
+      return;
+    }
+
+    statusText.textContent = isBn
+      ? `ফাইল নির্বাচিত: ${file.name} (${Math.round(file.size / 1024)} KB)`
+      : `File selected: ${file.name} (${Math.round(file.size / 1024)} KB)`;
+    statusText.style.color = 'var(--text-muted)';
+    previewImg.src = URL.createObjectURL(file);
+    previewImg.style.display = 'block';
+    if (btnRemoveImg) btnRemoveImg.style.display = 'inline-block';
   });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const isBn = getCurrentLang() === 'bn';
     const saveBtn = document.getElementById('save-product-submit-btn');
+
+    const nameBn = document.getElementById('modal-product-name-bn').value.trim();
+    const nameEn = document.getElementById('modal-product-name-en').value.trim();
+    const categoryId = document.getElementById('modal-product-category').value;
+    const rawPrice = document.getElementById('modal-product-price').value.trim();
+    const numPrice = parseFloat(rawPrice);
+
+    // Strict Validations
+    if (!nameBn) {
+      showToast(isBn ? 'পণ্যের বাংলা নাম আবশ্যক' : 'Product Bengali name is required', true);
+      document.getElementById('modal-product-name-bn').focus();
+      return;
+    }
+    if (!nameEn) {
+      showToast(isBn ? 'পণ্যের ইংরেজি নাম আবশ্যক' : 'Product English name is required', true);
+      document.getElementById('modal-product-name-en').focus();
+      return;
+    }
+    if (!categoryId) {
+      showToast(isBn ? 'অনুগ্রহ করে একটি বিভাগ নির্বাচন করুন' : 'Please select a valid category', true);
+      document.getElementById('modal-product-category').focus();
+      return;
+    }
+    if (!rawPrice || isNaN(numPrice) || numPrice < 0) {
+      showToast(isBn ? 'সঠিক মূল্য উল্লেখ করুন (ঋণাত্মক বা খালি মূল্য গ্রহণযোগ্য নয়)' : 'Please enter a valid non-negative price', true);
+      document.getElementById('modal-product-price').focus();
+      return;
+    }
+    if (numPrice <= 0) {
+      showToast(isBn ? 'পণ্যের মূল্য ০ থেকে বেশি হতে হবে' : 'Product price must be greater than 0', true);
+      document.getElementById('modal-product-price').focus();
+      return;
+    }
+
     saveBtn.disabled = true;
     saveBtn.textContent = t('saving');
 
@@ -1234,7 +1338,8 @@ function setupProductForm() {
 
       // Handle image upload with auto-resize and EXIF stripping
       if (file) {
-        statusText.textContent = 'ইমেজ রিসাইজ ও আপলোড হচ্ছে...';
+        statusText.textContent = isBn ? 'ইমেজ রিসাইজ ও আপলোড হচ্ছে...' : 'Resizing and uploading image...';
+        statusText.style.color = 'var(--text-muted)';
         imageUrl = await processAndUploadImage(file);
       }
 
@@ -1244,10 +1349,10 @@ function setupProductForm() {
       const skuVal = document.getElementById('modal-product-sku').value.trim() || generateRandomSku();
 
       const productPayload = {
-        name_bn: document.getElementById('modal-product-name-bn').value.trim(),
-        name_en: document.getElementById('modal-product-name-en').value.trim(),
-        category_id: document.getElementById('modal-product-category').value,
-        price: parseFloat(document.getElementById('modal-product-price').value) || 0,
+        name_bn: nameBn,
+        name_en: nameEn,
+        category_id: categoryId,
+        price: numPrice,
         stock_status: document.getElementById('modal-product-stock').value,
         fabric_type: fabricVal,
         sku_code: skuVal,
@@ -1262,10 +1367,10 @@ function setupProductForm() {
 
       if (id) {
         await updateProduct(id, productPayload);
-        showToast(t('toastSaveSuccess'));
+        showToast(isBn ? 'পণ্য সফলভাবে আপডেট করা হয়েছে!' : 'Product updated successfully!');
       } else {
         await createProduct(productPayload);
-        showToast(t('toastSaveSuccess'));
+        showToast(isBn ? 'নতুন পণ্য সফলভাবে যুক্ত করা হয়েছে!' : 'New product created successfully!');
       }
 
       closeProductModal();
@@ -1277,6 +1382,8 @@ function setupProductForm() {
       saveBtn.disabled = false;
       saveBtn.textContent = t('save');
     }
+  });
+}
   });
 }
 
@@ -1312,6 +1419,11 @@ function renderAdminCategoriesTable() {
   if (!tbody) return;
 
   const isBn = getCurrentLang() === 'bn';
+
+  if (adminCategories.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted); line-height: 1.6;">${isBn ? 'কোনো বিভাগ তৈরি করা হয়নি। নতুন বিভাগ যোগ করতে "+ নতুন বিভাগ যোগ করুন" বাটনে ক্লিক করুন।' : 'No categories created yet. Click "+ Add New Category" to create your first category.'}</td></tr>`;
+    return;
+  }
 
   tbody.innerHTML = adminCategories
     .map((cat, index) => {
@@ -1431,26 +1543,69 @@ function closeCategoryModal() {
 
 function setupCategoryForm() {
   const form = document.getElementById('category-form');
+  const nameEnInput = document.getElementById('modal-category-name-en');
+  const slugInput = document.getElementById('modal-category-slug');
+
+  // Auto-suggest slug when typing English name for new categories
+  if (nameEnInput && slugInput) {
+    nameEnInput.addEventListener('input', () => {
+      const catId = document.getElementById('modal-category-id').value;
+      if (!catId) {
+        slugInput.value = nameEnInput.value
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '');
+      }
+    });
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const isBn = getCurrentLang() === 'bn';
     const saveBtn = document.getElementById('save-category-submit-btn');
+
+    const nameBn = document.getElementById('modal-category-name-bn').value.trim();
+    const nameEn = document.getElementById('modal-category-name-en').value.trim();
+    let slug = document.getElementById('modal-category-slug').value.trim().toLowerCase();
+
+    if (!nameBn) {
+      showToast(isBn ? 'বিভাগের বাংলা নাম আবশ্যক' : 'Category Bengali name is required', true);
+      document.getElementById('modal-category-name-bn').focus();
+      return;
+    }
+    if (!nameEn) {
+      showToast(isBn ? 'বিভাগের ইংরেজি নাম আবশ্যক' : 'Category English name is required', true);
+      document.getElementById('modal-category-name-en').focus();
+      return;
+    }
+    if (!slug) {
+      slug = nameEn.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      slugInput.value = slug;
+    }
+    if (!/^[a-z0-9_-]+$/.test(slug)) {
+      showToast(isBn ? 'স্লাগে শুধুমাত্র ছোট হাতের ইংরেজি অক্ষর, সংখ্যা ও হাইফেন ব্যবহার করা যাবে' : 'Slug must contain only lowercase letters, numbers, and hyphens', true);
+      slugInput.focus();
+      return;
+    }
+
     saveBtn.disabled = true;
 
     try {
       const id = document.getElementById('modal-category-id').value;
       const payload = {
-        name_bn: document.getElementById('modal-category-name-bn').value.trim(),
-        name_en: document.getElementById('modal-category-name-en').value.trim(),
-        slug: document.getElementById('modal-category-slug').value.trim().toLowerCase()
+        name_bn: nameBn,
+        name_en: nameEn,
+        slug: slug
       };
 
       if (id) {
         await updateCategory(id, payload);
+        showToast(isBn ? 'বিভাগ সফলভাবে আপডেট করা হয়েছে।' : 'Category updated successfully.');
       } else {
         await createCategory(payload);
+        showToast(isBn ? 'নতুন বিভাগ সফলভাবে তৈরি হয়েছে।' : 'New category created successfully.');
       }
 
-      showToast(t('toastSaveSuccess'));
       closeCategoryModal();
       await loadAdminCategories();
       updateDashboardStats();

@@ -860,7 +860,29 @@ export async function deleteProduct(product) {
 // IMAGE UPLOAD & RESIZE (Client-side Canvas: max 1200px, JPEG 0.8, EXIF stripped)
 // ==============================================================================
 export async function processAndUploadImage(file) {
-  if (!file) throw new Error('কোনো ফাইল নির্বাচন করা হয়নি');
+  const isBn = getCurrentLang() === 'bn';
+  if (!file) throw new Error(isBn ? 'কোনো ফাইল নির্বাচন করা হয়নি' : 'No file selected');
+
+  // 1. Validate MIME type
+  const allowedMime = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
+  if (file.type && !allowedMime.includes(file.type)) {
+    throw new Error(
+      isBn
+        ? 'শুধুমাত্র JPEG, PNG, WEBP বা SVG ইমেজ আপলোড করা যাবে।'
+        : 'Only JPEG, PNG, WEBP, or SVG images are supported.'
+    );
+  }
+
+  // 2. Validate File Size (Max 5 MB matching Supabase storage bucket limit)
+  const MAX_BYTES = 5 * 1024 * 1024;
+  if (file.size > MAX_BYTES) {
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+    throw new Error(
+      isBn
+        ? `ইমেজের আকার (${sizeMb} MB) অতিরিক্ত বড়। সর্বোচ্চ ৫ MB সাইজের ফাইল গ্রহণযোগ্য।`
+        : `Image size (${sizeMb} MB) exceeds maximum allowed limit of 5 MB.`
+    );
+  }
 
   // Step A: Client-side resize and EXIF strip via Canvas
   const resizedBlob = await new Promise((resolve, reject) => {
